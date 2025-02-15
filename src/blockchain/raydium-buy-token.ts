@@ -129,4 +129,4 @@ const buyToken = async (outputMint: string, amount: number, slippage: number): P
     }
   };
 
- 
+  //apibuyToken( new PublicKey('GL8DFZXKhfmoKf3gAQhv5wAkzKFYSBMYgz9wfT5wpump'), 20000)

@@ -140,3 +140,6 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
       throw error; // Пробрасываем ошибку, чтобы обработать её в useAutoTrade
     }
   };
+
+
+  //apiSellToken('GL8DFZXKhfmoKf3gAQhv5wAkzKFYSBMYgz9wfT5wpump', 19000)

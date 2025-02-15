@@ -12,10 +12,11 @@ const QUICKNODE_ENDPOINT = 'https://stylish-falling-glade.solana-mainnet.quiknod
 const connection = new Connection(QUICKNODE_ENDPOINT);
 
 interface PurchasedToken {
-  totalCost: number; // Общая стоимость покупки
+  totalCost: number; // Общая стоимость покупки в USD
   amount: number;    // Количество купленных токенов
   amountInLamports: number; // Количество токенов в лампасдах
   decimals: number; // Количество знаков после запятой
+  buyPriceInUSD: number; // Цена покупки токена в USD
 }
 
 interface SoldToken {
@@ -37,12 +38,15 @@ const loadPurchasedTokensFromLocalStorage = (): Record<string, PurchasedToken> =
 const purchasedTokens: Record<string, PurchasedToken> = loadPurchasedTokensFromLocalStorage();
 
 export const useAutoTrade = () => {
+
+
   const pools = usePools();  
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [soldTokens, setSoldTokens] = useState<SoldToken[]>([]); // Состояние для проданных токенов
   const [isBuying, setIsBuying] = useState(false);
   const [lastPurchaseTime, setLastPurchaseTime] = useState<number>(0);
   const [isSelling, setIsSelling] = useState<Record<string, boolean>>({});
+  const solAddress = 'So11111111111111111111111111111111111111112';
 
   const getTokenPrice = async (tokenAddress: string): Promise<number> => {
     try {
@@ -50,6 +54,16 @@ export const useAutoTrade = () => {
       return response.data.pairs[0]?.priceUsd || 0;
     } catch (error) {
       console.error("❌ Ошибка получения цены:", error);
+      return 0;
+    }
+  };
+
+  const getSOLPrice = async (): Promise<number> => {
+    try {
+      const response = await axios.get(`https://api.dexscreener.com/latest/dex/tokens/${solAddress}`);
+      return response.data.pairs[0]?.priceUsd || 0;
+    } catch (error) {
+      console.error("❌ Ошибка получения цены SOL:", error);
       return 0;
     }
   };
@@ -81,6 +95,13 @@ export const useAutoTrade = () => {
       if (filteredPools.length > 0) {
         const pool = filteredPools[0];
         const tokenAddress = pool.baseToken.address;
+
+        // Проверяем, был ли токен уже куплен
+        if (purchasedTokens[tokenAddress]) {
+          console.log(`Токен ${tokenAddress} уже куплен, пропускаем.`);
+          return;
+        }
+
         const publicKey = new PublicKey(tokenAddress);
 
         setIsBuying(true);
@@ -89,30 +110,32 @@ export const useAutoTrade = () => {
         const decimals = await getTokenDecimals(tokenAddress);
 
         // Покупаем токен и получаем ответ
-        const buyResponse = await apibuyToken(publicKey, 20000); // Покупаем на 20000 лампасдов SOL
+        const buyResponse = await apibuyToken(publicKey, 2000); // Покупаем на 2000 лампасдов SOL
         const outputAmount = Number(buyResponse.data.outputAmount);
+        const inputAmount = Number(buyResponse.data.inputAmount); // Количество потраченных лампасдов SOL
 
-        // Получаем актуальную цену после покупки
-        const actualPrice = await getTokenPrice(tokenAddress);
+        // Получаем текущую цену SOL
+        const solPrice = await getSOLPrice();
 
         // Конвертируем лампасды в токены с учетом Decimals
         const amountInTokens = outputAmount / Math.pow(10, decimals);
 
-        if (!purchasedTokens[tokenAddress]) {
-          purchasedTokens[tokenAddress] = {
-            totalCost: actualPrice * amountInTokens, // Стоимость в токенах
-            amount: amountInTokens, // Количество токенов
-            amountInLamports: outputAmount, // Количество токенов в лампасдах
-            decimals, // Сохраняем Decimals для токена
-          };
-        } else {
-          purchasedTokens[tokenAddress].totalCost += actualPrice * amountInTokens;
-          purchasedTokens[tokenAddress].amount += amountInTokens;
-          purchasedTokens[tokenAddress].amountInLamports += outputAmount;
-        }
+        // Рассчитываем общую стоимость покупки в USD
+        const totalCost = (inputAmount / 1e9) * solPrice; // 1e9 — это 1 миллиард лампасдов (1 SOL)
+
+        // Рассчитываем цену за 1 токен в USD
+        const buyPriceInUSD = totalCost / amountInTokens;
+
+        purchasedTokens[tokenAddress] = {
+          totalCost, // Общая стоимость покупки в USD
+          amount: amountInTokens, // Количество токенов
+          amountInLamports: outputAmount, // Количество токенов в лампасдах
+          decimals, // Сохраняем Decimals для токена
+          buyPriceInUSD, // Цена покупки токена в USD
+        };
 
         savePurchasedTokensToLocalStorage(purchasedTokens);
-        console.log(`✅ Купили ${tokenAddress} по цене ${actualPrice}, количество: ${amountInTokens}`);
+        console.log(`✅ Купили ${tokenAddress} по цене ${buyPriceInUSD} USD, количество: ${amountInTokens}`);
 
         setLastPurchaseTime(nowInSeconds);
         setIsBuying(false);
@@ -122,42 +145,53 @@ export const useAutoTrade = () => {
     buyTokens();
   }, [pools, isBuying, lastPurchaseTime]);
 
+
   useEffect(() => {
     const sellTokens = async () => {
       for (const tokenAddress of Object.keys(purchasedTokens)) {
         // Если продажа уже идет, пропускаем этот токен
-        if (isSelling[tokenAddress]) continue;
-
+        if (isSelling[tokenAddress]) {
+          console.log(`Продажа токена ${tokenAddress} уже идет, пропускаем.`);
+          continue;
+        }
+  
         const currentPrice = await getTokenPrice(tokenAddress);
         setPrices((prev) => ({ ...prev, [tokenAddress]: currentPrice }));
-
-        const buyPrice = purchasedTokens[tokenAddress].totalCost / purchasedTokens[tokenAddress].amount;
-        console.log(`Текущая цена: ${currentPrice}, Цена покупки: ${buyPrice}`);
-
-        if (currentPrice >= buyPrice * 1.15) {
+  
+        // Получаем цену покупки токена в USD
+        const buyPriceInUSD = purchasedTokens[tokenAddress].buyPriceInUSD;
+  
+        console.log(`Текущая цена: ${currentPrice}, Цена покупки: ${buyPriceInUSD}`);
+  
+        if (currentPrice >= buyPriceInUSD * 1.15) {
           console.log(`📈 Продаем ${tokenAddress} за ${currentPrice}`);
-
+  
           // Устанавливаем флаг, что продажа началась
           setIsSelling((prev) => ({ ...prev, [tokenAddress]: true }));
-
+  
+    
+  
           try {
             // Уменьшаем amountInLamports на 1%
-            const amountInLamports = purchasedTokens[tokenAddress].amountInLamports;
+            const amountInLamports = tokenData.amountInLamports;
             const amountToSell = Math.floor(amountInLamports * 0.99); // 1% меньше
-
+  
             // Используем amountToSell для продажи
-            await apiSellToken(tokenAddress, amountToSell);
+            await apiSellToken(tokenAddress, 2270);
 
+               // Удаляем токен из purchasedTokens сразу после начала продажи
+          const tokenData = purchasedTokens[tokenAddress];
+          delete purchasedTokens[tokenAddress];
+          savePurchasedTokensToLocalStorage(purchasedTokens);
+  
             const soldToken: SoldToken = {
               tokenAddress,
-              buyPrice,
+              buyPrice: buyPriceInUSD,
               sellPrice: currentPrice,
-              profit: currentPrice - buyPrice,
+              profit: currentPrice - buyPriceInUSD,
             };
-
+  
             setSoldTokens((prev) => [...prev, soldToken]);
-            delete purchasedTokens[tokenAddress];
-            savePurchasedTokensToLocalStorage(purchasedTokens);
           } catch (error) {
             console.error("❌ Ошибка при продаже токена:", error);
           } finally {
@@ -167,7 +201,7 @@ export const useAutoTrade = () => {
         }
       }
     };
-
+  
     const interval = setInterval(sellTokens, 1000); // Проверяем каждую секунду
     return () => clearInterval(interval);
   }, []);
