@@ -1,29 +1,32 @@
 import { useEffect, useState } from "react";
-import { getPools } from "../api/dex-screener-api";
-import { TokenPairProfile } from "../types/dex-screener-pair";
+import { TokenPairProfile } from "@/types/dex-screener-pair";
+import { latestBoostedTokens } from "@/api/a";
 
 export const usePools = (): TokenPairProfile[] | null => {
   const [pools, setPools] = useState<TokenPairProfile[] | null>(null);
 
   const fetchPools = async () => {
-    const data = await getPools();
-    setPools(data);
+    try {
+      const data = await latestBoostedTokens(); // Теперь latestBoostedTokens возвращает TokenPairProfile[] или null
+      setPools(data); // Устанавливаем данные в состояние
+    } catch (error) {
+      console.error("Error fetching pools:", error);
+      setPools(null); // В случае ошибки устанавливаем null
+    }
   };
 
   useEffect(() => {
-
-    fetchPools();
+    fetchPools(); // Вызываем fetchPools при монтировании компонента
 
     const intervalId = setInterval(() => {
-      fetchPools();
-    }, 20000);
+      fetchPools(); // Обновляем данные каждую минуту
+    }, 60000);
 
     return () => {
-      clearInterval(intervalId);
-    }
+      clearInterval(intervalId); // Очищаем интервал при размонтировании компонента
+    };
   }, []);
 
-   return pools;
+  return pools; // Возвращаем данные
 };
-
 

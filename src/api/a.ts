@@ -1,0 +1,44 @@
+import { TokenPairProfile } from "@/types/dex-screener-pair";
+import axios from "axios";
+
+export const latestBoostedTokens = async (): Promise<TokenPairProfile[] | null> => {
+  try {
+    const response = await axios.get<any>(
+      `https://api.dexscreener.com/token-boosts/latest/v1`
+    );
+
+    // Фильтруем токены по условию
+    const filteredTokens = response.data.filter(
+      (token: any) => token.amount >= 10 && token.chainId
+    );
+
+    // Получаем информацию о парах для отфильтрованных токенов
+    const tokenPairs = await getTokenPairInfo(filteredTokens);
+
+    //console.log('Token Pairs:', tokenPairs);
+    return tokenPairs; // Возвращаем данные
+  } catch (error) {
+    console.error('Error fetching latest boosted tokens:', error);
+    return null; // В случае ошибки возвращаем null
+  }
+};
+
+async function getTokenPairInfo(data: any[]): Promise<TokenPairProfile[]> {
+  const pairsArray = await Promise.all(
+    data.map(async (token) => {
+      try {
+        const response = await axios.get(
+          `https://api.dexscreener.com/token-pairs/v1/${token.chainId}/${token.tokenAddress}`
+        );
+        
+        return response.data;
+      } catch (error) {
+        console.error(`Error fetching pair info for token: ${token.tokenAddress}`, error);
+        return []; // Возвращаем пустой массив в случае ошибки
+      }
+    })
+  );
+
+  return pairsArray.flat();
+}
+ 

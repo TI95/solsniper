@@ -8,73 +8,46 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { getMint } from '@solana/spl-token';
 import { LiquidErrorRaydium } from "@/types/liquid-error-raydium";
 
-// QuickNode endpoint
+// Укажите ваш QuickNode endpoint
 const QUICKNODE_ENDPOINT = 'https://stylish-falling-glade.solana-mainnet.quiknode.pro/01796c91dbb4b4e0a971e5fe3457980aed1ac4b9';
 const connection = new Connection(QUICKNODE_ENDPOINT);
 
 interface PurchasedToken {
-  totalCost: number;
-  amount: number;
-  amountInLamports: number;
-  decimals: number;
-  buyPriceInUSD: number;
+  totalCost: number; // Общая стоимость покупки в USD
+  amount: number;    // Количество купленных токенов
+  amountInLamports: number; // Количество токенов в лампасдах
+  decimals: number; // Количество знаков после запятой
+  buyPriceInUSD: number; // Цена покупки токена в USD
 }
 
 interface SoldToken {
   tokenAddress: string;
-  buyPrice: number;
-  sellPrice: number;
-  profit: number;
-  link: string;
+  buyPrice: number;  // Цена покупки
+  sellPrice: number; // Цена продажи
+  profit: number;    // Профит
 }
 
-// Сохраняем purchasedTokens в localStorage
 const savePurchasedTokensToLocalStorage = (tokens: Record<string, PurchasedToken>) => {
   localStorage.setItem("purchasedTokens", JSON.stringify(tokens));
 };
 
-// Загружаем purchasedTokens из localStorage
 const loadPurchasedTokensFromLocalStorage = (): Record<string, PurchasedToken> => {
   const data = localStorage.getItem("purchasedTokens");
   return data ? JSON.parse(data) : {};
 };
 
-// Сохраняем purchasedTokensHistory в localStorage
-const savePurchasedTokensHistoryToLocalStorage = (tokens: Set<string>) => {
-  const tokensArray = Array.from(tokens); // Преобразуем Set в массив
-  localStorage.setItem("purchasedTokensHistory", JSON.stringify(tokensArray));
-};
-
-// Загружаем purchasedTokensHistory из localStorage
-const loadPurchasedTokensHistoryFromLocalStorage = (): Set<string> => {
-  const data = localStorage.getItem("purchasedTokensHistory");
-  if (data) {
-    const tokensArray = JSON.parse(data) as string[]; // Преобразуем массив обратно в Set
-    return new Set(tokensArray);
-  }
-  return new Set(); // Если данных нет, возвращаем пустой Set
-};
-
 const purchasedTokens: Record<string, PurchasedToken> = loadPurchasedTokensFromLocalStorage();
 
 export const useAutoTrade = () => {
-  const pools = usePools();
+
+
+  const pools = usePools();  
   const [prices, setPrices] = useState<Record<string, number>>({});
-  const [soldTokens, setSoldTokens] = useState<SoldToken[]>([]);
+  const [soldTokens, setSoldTokens] = useState<SoldToken[]>([]); // Состояние для проданных токенов
   const [isBuying, setIsBuying] = useState(false);
   const [lastPurchaseTime, setLastPurchaseTime] = useState<number>(0);
   const [isSelling, setIsSelling] = useState<Record<string, boolean>>({});
-  const [processingTokens, setProcessingTokens] = useState<Set<string>>(new Set());
-  const [soldTokensHistory, setSoldTokensHistory] = useState<Set<string>>(new Set());
-  const [purchasedTokensHistory, setPurchasedTokensHistory] = useState<Set<string>>(
-    loadPurchasedTokensHistoryFromLocalStorage() // Инициализация из localStorage
-  );
   const solAddress = 'So11111111111111111111111111111111111111112';
-
-  // Сохраняем purchasedTokensHistory в localStorage при изменении
-  useEffect(() => {
-    savePurchasedTokensHistoryToLocalStorage(purchasedTokensHistory);
-  }, [purchasedTokensHistory]);
 
   const getTokenPrice = async (tokenAddress: string): Promise<number> => {
     try {
@@ -97,114 +70,114 @@ export const useAutoTrade = () => {
   };
 
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
+    // Получаем данные mint-аккаунта
     const mintAccount = await getMint(connection, new PublicKey(tokenAddress));
-    return mintAccount.decimals;
+    console.log(mintAccount.decimals);
+    return mintAccount.decimals; // Возвращаем количество знаков после запятой
   };
 
   useEffect(() => {
     const buyTokens = async () => {
-      if (!pools || isBuying || Object.keys(purchasedTokens).length === 1) {
-        console.log("Покупка заблокирована: нет pools, идет покупка или достигнут лимит токенов");
-        return;
-      }
-
+      if (!pools || isBuying || Object.keys(purchasedTokens).length >= 2) return;
+  
       const nowInSeconds = Math.floor(Date.now() / 1000);
-      const oneHourAgo = nowInSeconds - 60 * 20;
-
+      const oneHourAgo = nowInSeconds - 60*30; // 1 час = 3600 секунд
+  
+      // Убираем дубликаты токенов
       const uniquePools = pools.filter(
         (pool, index, self) =>
           index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
       );
-
+  
       const filteredPools = uniquePools.filter(
         (pool: TokenPairProfile) =>
           pool.chainId === "solana" &&
           pool.dexId === "raydium" &&
           pool.liquidity.usd >= 30000 &&
-          //pool.marketCap >= 800000000 &&
+          pool.liquidity.usd <= 110000 &&
           Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
       );
-
-      if (nowInSeconds - lastPurchaseTime < 30) {
-        console.log("Слишком рано для покупки, осталось:", 30 - (nowInSeconds - lastPurchaseTime), "секунд");
-        return;
-      }
-
+  
+      // Покупка не чаще чем раз в 30 секунд
+      if (nowInSeconds - lastPurchaseTime < 30) return;
+  
       if (filteredPools.length > 0) {
         const pool = filteredPools[0];
         const tokenAddress = pool.baseToken.address;
-
+  
         // Проверяем, был ли токен уже куплен
-        if (purchasedTokensHistory.has(tokenAddress)) {
-          console.log(`❌ Токен ${tokenAddress} уже был куплен ранее.`);
+        if (purchasedTokens[tokenAddress]) {
+          console.log(`Токен ${tokenAddress} уже куплен, пропускаем.`);
           return;
         }
-
-        const isTokenSold = soldTokens.some((sold) => sold.tokenAddress === tokenAddress);
-        if (isTokenSold) {
-          console.log(`Токен ${tokenAddress} уже был продан, пропускаем покупку`);
-          return;
-        }
-
-        if (purchasedTokens[tokenAddress] || processingTokens.has(tokenAddress)) {
-          console.log(`Токен ${tokenAddress} уже куплен или в процессе, пропускаем`);
-          return;
-        }
-
+  
         const publicKey = new PublicKey(tokenAddress);
-        setProcessingTokens((prev) => new Set(prev).add(tokenAddress));
+  
+        // Устанавливаем флаг, что покупка началась
         setIsBuying(true);
-        console.log("Начало покупки токена:", tokenAddress);
-
+  
         try {
+          // Получаем Decimals для токена
           const decimals = await getTokenDecimals(tokenAddress);
-          const buyResponse = await apibuyToken(publicKey, 90000000);
-
+  
+          // Покупаем токен и получаем ответ
+          const buyResponse = await apibuyToken(publicKey, 200000); // Покупаем на 2000 лампасдов SOL
+  
+          // Проверяем, что buyResponse содержит data
           if (!buyResponse || !buyResponse.data) {
             console.error("Ошибка: данные о покупке отсутствуют");
             return;
           }
-
+  
           const outputAmount = Number(buyResponse.data.outputAmount);
-          const inputAmount = Number(buyResponse.data.inputAmount);
+          const inputAmount = Number(buyResponse.data.inputAmount); // Количество потраченных лампасдов SOL
+  
+          // Получаем текущую цену SOL
           const solPrice = await getSOLPrice();
+  
+          // Конвертируем лампасды в токены с учетом Decimals
           const amountInTokens = outputAmount / Math.pow(10, decimals);
-          const totalCost = (inputAmount / 1e9) * solPrice;
+  
+          // Рассчитываем общую стоимость покупки в USD
+          const totalCost = (inputAmount / 1e9) * solPrice; // 1e9 — это 1 миллиард лампасдов (1 SOL)
+  
+          // Рассчитываем цену за 1 токен в USD
           const buyPriceInUSD = totalCost / amountInTokens;
-
+  
+          // Добавляем токен в purchasedTokens ДО завершения транзакции
           purchasedTokens[tokenAddress] = {
-            totalCost,
-            amount: amountInTokens,
-            amountInLamports: outputAmount,
-            decimals,
-            buyPriceInUSD,
+            totalCost, // Общая стоимость покупки в USD
+            amount: amountInTokens, // Количество токенов
+            amountInLamports: outputAmount, // Количество токенов в лампасдах
+            decimals, // Сохраняем Decimals для токена
+            buyPriceInUSD, // Цена покупки токена в USD
           };
+  
           savePurchasedTokensToLocalStorage(purchasedTokens);
-          setPurchasedTokensHistory((prev) => new Set(prev).add(tokenAddress)); // Добавляем токен в историю купленных
           console.log(`✅ Купили ${tokenAddress} по цене ${buyPriceInUSD} USD, количество: ${amountInTokens}`);
+  
           setLastPurchaseTime(nowInSeconds);
         } catch (error) {
           console.error("Ошибка при покупке токена:", error);
+  
+          // Если покупка не удалась, удаляем токен из purchasedTokens
+          delete purchasedTokens[tokenAddress];
+          savePurchasedTokensToLocalStorage(purchasedTokens);
         } finally {
+          // Снимаем флаг после завершения покупки
           setIsBuying(false);
-          setProcessingTokens((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(tokenAddress);
-            return newSet;
-          });
         }
       }
     };
-
-    if (!pools) return;
-
-   
+  
     buyTokens();
-  }, [pools, soldTokens, purchasedTokens, processingTokens, isBuying, lastPurchaseTime, soldTokensHistory, purchasedTokensHistory]);
+  }, [pools, isBuying, lastPurchaseTime]);
+
 
   useEffect(() => {
     const sellTokens = async () => {
       for (const tokenAddress of Object.keys(purchasedTokens)) {
+        // Если продажа уже идет, пропускаем этот токен
         if (isSelling[tokenAddress]) {
           console.log(`Продажа токена ${tokenAddress} уже идет, пропускаем.`);
           continue;
@@ -213,60 +186,56 @@ export const useAutoTrade = () => {
         const currentPrice = await getTokenPrice(tokenAddress);
         setPrices((prev) => ({ ...prev, [tokenAddress]: currentPrice }));
   
+        // Получаем цену покупки токена в USD
         const buyPriceInUSD = purchasedTokens[tokenAddress].buyPriceInUSD;
   
         console.log(`Текущая цена: ${currentPrice}, Цена покупки: ${buyPriceInUSD}`);
   
-        if (currentPrice >= buyPriceInUSD * 1.25) {
+        if (currentPrice >= buyPriceInUSD * 1.15) {
           console.log(`📈 Продаем ${tokenAddress} за ${currentPrice}`);
+  
+          // Устанавливаем флаг, что продажа началась
           setIsSelling((prev) => ({ ...prev, [tokenAddress]: true }));
   
-          const tokenData = purchasedTokens[tokenAddress]; // Сохраняем данные токена
+          // Удаляем токен из purchasedTokens ДО начала продажи
+          const tokenData = purchasedTokens[tokenAddress];
+          delete purchasedTokens[tokenAddress];
+          savePurchasedTokensToLocalStorage(purchasedTokens);
   
           try {
-            await apiSellToken(tokenAddress, 108000000);
-  
-            // Если продажа успешна, удаляем токен
-            delete purchasedTokens[tokenAddress];
-            savePurchasedTokensToLocalStorage(purchasedTokens);
+            // Используем amountToSell для продажи
+            await apiSellToken(tokenAddress, 248000);
   
             const soldToken: SoldToken = {
               tokenAddress,
               buyPrice: buyPriceInUSD,
               sellPrice: currentPrice,
               profit: currentPrice - buyPriceInUSD,
-              link: `https://dexscreener.com/solana/${tokenAddress}`,
             };
   
             setSoldTokens((prev) => [...prev, soldToken]);
-            setSoldTokensHistory((prev) => new Set(prev).add(tokenAddress)); // Добавляем токен в историю проданных
           } catch (error) {
             console.error("❌ Ошибка при продаже токена:", error);
   
-            if ((error as LiquidErrorRaydium).msg?.includes("INSUFFICIENT_LIQUIDITY")) {
+            // Если ошибка связана с недостатком ликвидности, удаляем токен
+            if ((error as LiquidErrorRaydium).msg && (error as LiquidErrorRaydium).msg.includes("INSUFFICIENT_LIQUIDITY")) {
               console.log(`❌ Токен ${tokenAddress} не может быть продан из-за недостатка ликвидности, удаляем из списка.`);
-            } else if (error instanceof Error && error.message.includes("TransactionExpiredBlockheightExceededError")) {
-              console.log(`❌ Транзакция истекла, токен ${tokenAddress} не продан.`);
-              // Восстанавливаем токен в purchasedTokens
-              purchasedTokens[tokenAddress] = tokenData;
-              savePurchasedTokensToLocalStorage(purchasedTokens);
             } else {
-              console.log(`❌ Неизвестная ошибка при продаже токена ${tokenAddress}.`);
-              // Восстанавливаем токен в purchasedTokens
+              // Если ошибка другая, возвращаем токен в purchasedTokens
               purchasedTokens[tokenAddress] = tokenData;
               savePurchasedTokensToLocalStorage(purchasedTokens);
             }
           } finally {
+            // Снимаем флаг после завершения продажи
             setIsSelling((prev) => ({ ...prev, [tokenAddress]: false }));
           }
         }
       }
     };
   
-    const interval = setInterval(sellTokens, 10000); // Проверяем каждые 10 секунд
+    const interval = setInterval(sellTokens, 1000); // Проверяем каждую секунду
     return () => clearInterval(interval);
-  }, [isSelling, purchasedTokens, soldTokens, soldTokensHistory]);
+  }, [isSelling]); // Добавляем зависимости
 
-   
-  return { prices, soldTokens };
+  return { prices, soldTokens }; // Возвращаем и цены, и проданные токены
 };

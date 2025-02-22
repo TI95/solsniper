@@ -37,6 +37,7 @@ export type TokenPairProfile = {
         handle: string;
       }[];
     };
+    hasSocials?: boolean;
     boosts: {
       active: number;
     };

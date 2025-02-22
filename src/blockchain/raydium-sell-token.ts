@@ -2,14 +2,11 @@ import { Connection, Keypair, VersionedTransaction, PublicKey, Transaction } fro
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import axios from 'axios';
 import { API_URLS } from '@raydium-io/raydium-sdk-v2';
+ 
 
-const privateKeyArray = new Uint8Array([
-  138, 26, 252, 178, 76, 60, 179, 129, 41, 151, 195, 21, 198, 136,
-  81, 14, 144, 224, 113, 228, 245, 9, 246, 144, 112, 184, 205, 96,
-  243, 182, 14, 97, 129, 53, 227, 124, 22, 66, 149, 89, 3, 214, 87,
-  215, 109, 41, 164, 54, 130, 181, 44, 210, 253, 86, 136, 168, 200,
-  200, 114, 48, 137, 204, 148, 218,
-]);
+const privateKeyArray = new Uint8Array(
+  import.meta.env.VITE_PRIVATE_KEY.split(',').map(Number)
+);
 export const owner: Keypair = Keypair.fromSecretKey(privateKeyArray);
 export const connection = new Connection('https://stylish-falling-glade.solana-mainnet.quiknode.pro/01796c91dbb4b4e0a971e5fe3457980aed1ac4b9');
 
@@ -19,27 +16,37 @@ export const connection = new Connection('https://stylish-falling-glade.solana-m
  * @param amount - Количество токенов для продажи (в минимальных единицах)
  * @param slippage - Процент slippage
  */
-const sellToken = async (inputMint: string, amount: number, slippage: number) => {
-  const priorityFee = 1500000;
-  const outputMint = 'So11111111111111111111111111111111111111112'; // SOL
-  const txVersion = 'V0';
-  const isInputSol = false; // Входной токен — не SOL
-  const isOutputSol = true; // Выходной токен — SOL
-  const isV0Tx = true;
+export class LiquidErrorRaydium extends Error {
+  id: string;
+  success: boolean;
+  version: string;
+  msg: string;
 
-       // get statistical transaction fee from API
+  constructor(id: string, success: boolean, version: string, msg: string) {
+    super(msg); // Вызов конструктора родительского класса Error
+    this.id = id;
+    this.success = success;
+    this.version = version;
+    this.msg = msg;
+  }
+}
   /**
    * vh: very high
    * h: high
    * m: medium
    */
-  /////////////////////////////////////////////////////////////
-  const { data } = await axios.get<{
-    id: string
-    success: boolean
-    data: { default: { vh: number; h: number; m: number } }
-  }>(`${API_URLS.BASE_HOST}${API_URLS.PRIORITY_FEE}`)
-///////////////////////////////////////////////////////////////
+ 
+  const sellToken = async (
+    inputMint: string,
+    amount: number,
+    slippage: number,
+    priorityFee: number // Принимаем priorityFee как параметр
+  ): Promise<string> => {
+    const outputMint = 'So11111111111111111111111111111111111111112'; // SOL
+    const txVersion = 'V0';
+    const isInputSol = false; // Входной токен — не SOL
+    const isOutputSol = true; // Выходной токен — SOL
+    const isV0Tx = true;
 
   // Получаем адреса токен-аккаунтов
   const inputTokenAcc = await getAssociatedTokenAddress(
@@ -61,6 +68,17 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
 
   console.log('Swap Response:', swapResponse);
 
+  // Проверяем, есть ли ошибка в ответе
+  if (!swapResponse.success) {
+    if (swapResponse.msg && swapResponse.msg.includes("INSUFFICIENT_LIQUIDITY")) {
+      console.log("❌ Недостаточно ликвидности, прекращаем попытки продажи.");
+      throw new LiquidErrorRaydium(swapResponse.id, swapResponse.success, swapResponse.version, swapResponse.msg);
+    } else {
+      console.error("Ошибка в swapResponse:", swapResponse.msg);
+      throw new Error("Ошибка в swapResponse: " + swapResponse.msg);
+    }
+  }
+
   // Получаем транзакции для обмена
   const { data: swapTransactions } = await axios.post<{
     id: string;
@@ -70,7 +88,6 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
   }>(
     `${API_URLS.SWAP_HOST}/transaction/swap-base-out`,
     {
-      //computeUnitPriceMicroLamports: String(data.data.default.h),
       computeUnitPriceMicroLamports: String(priorityFee),
       swapResponse,
       txVersion,
@@ -86,7 +103,7 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
 
   if (!swapTransactions.data) {
     console.error('Invalid response format:', swapTransactions);
-    return;
+    throw new Error("Invalid response format"); // Выбрасываем ошибку, если данные отсутствуют
   }
 
   // Десериализуем транзакции
@@ -95,21 +112,21 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
     isV0Tx ? VersionedTransaction.deserialize(txBuf) : Transaction.from(txBuf)
   );
 
-  console.log(`Total ${allTransactions.length} transactions`, swapTransactions);
-
   // Отправляем транзакции
+  let lastTxId = '';
+
   for (const tx of allTransactions) {
     const transaction = tx as VersionedTransaction;
     transaction.sign([owner]);
     const txId = await connection.sendTransaction(transaction, { skipPreflight: true });
+    lastTxId = txId; // Сохраняем txId последней транзакции
+
     const { lastValidBlockHeight, blockhash } = await connection.getLatestBlockhash({
       commitment: 'finalized',
     });
 
     console.log(`Transaction sending..., txId: ${txId}`);
-
-    // Ждем подтверждения транзакции
-    const confirmation = await connection.confirmTransaction(
+    await connection.confirmTransaction(
       {
         blockhash,
         lastValidBlockHeight,
@@ -117,29 +134,94 @@ const sellToken = async (inputMint: string, amount: number, slippage: number) =>
       },
       'confirmed'
     );
+    console.log(`Transaction confirmed`);
+  }
 
-    if (confirmation.value.err) {
-      console.error(`❌ Транзакция ${txId} не удалась:`, confirmation.value.err);
-      throw new Error("Транзакция не удалась");
-    } else {
-      console.log(`✅ Транзакция ${txId} успешно подтверждена`);
+  if (!lastTxId) {
+    throw new Error("Не удалось отправить транзакцию"); // Выбрасываем ошибку, если txId отсутствует
+  }
+
+  return lastTxId; // Возвращаем txId
+};
+
+const checkTransactionStatus = async (signature: string): Promise<boolean> => {
+  try {
+    const response = await connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0, // Указываем поддержку версии 0
+    });
+
+    if (!response) {
+      console.log("Транзакция не найдена или не подтверждена.");
+      return false;
     }
+
+    if (response.meta?.err) {
+      console.log("❌ Транзакция завершилась с ошибкой:", response.meta.err);
+      return false;
+    } else {
+      console.log("✅ Транзакция успешна.");
+      return true;
+    }
+  } catch (error) {
+    console.error("Ошибка при проверке статуса транзакции:", error);
+    return false;
   }
 };
 
+export const apiSellToken = async (tokenAddress: string, amountInLamports: number): Promise<void> => {
+  const MAX_RETRIES = 2; // Максимальное количество попыток
+  let retryCount = 0;
 
+  // Получаем начальное значение комиссии из API
+  const { data } = await axios.get<{
+    id: string;
+    success: boolean;
+    data: { default: { vh: number; h: number; m: number } };
+  }>(`${API_URLS.BASE_HOST}${API_URLS.PRIORITY_FEE}`);
 
-  export const apiSellToken = async (tokenAddress: string, amountInLamports: number) => {
+  let priorityFee = data.data.default.h; // Начальное значение комиссии из API
+
+  while (retryCount <= MAX_RETRIES) {
     try {
       const slippage = 10; // Slippage в процентах
-  
+
       console.log('Selling Token for SOL...');
-      await sellToken(tokenAddress, amountInLamports, slippage);
+      const txId = await sellToken(tokenAddress, amountInLamports, slippage, priorityFee);
+
+      // Проверяем статус транзакции
+      const isTransactionSuccessful = await checkTransactionStatus(txId);
+
+      if (isTransactionSuccessful) {
+        console.log('✅ Продажа успешно завершена.');
+        return; // Выходим, если транзакция успешна
+      } else {
+        console.log(`Попытка ${retryCount + 1} неудачна. Повторяем...`);
+        retryCount++;
+      }
     } catch (error) {
-      console.error('Error during sell:', error);
-      throw error; // Пробрасываем ошибку, чтобы обработать её в useAutoTrade
+      console.error('Ошибка при продаже:', error);
+
+      // Если ошибка связана с недостатком ликвидности, прекращаем попытки
+      if (error instanceof LiquidErrorRaydium && error.msg.includes("INSUFFICIENT_LIQUIDITY")) {
+        console.log("❌ Недостаточно ликвидности, прекращаем попытки продажи.");
+        throw error; // Пробрасываем ошибку, чтобы удалить токен
+      }
+
+      // Если ошибка связана с истечением времени транзакции
+      if (error instanceof Error && error.message.includes("TransactionExpiredBlockheightExceededError")) {
+        console.log("❌ Транзакция истекла, увеличиваем priorityFee и повторяем попытку...");
+        priorityFee = 2500000; // Увеличиваем комиссию до 2,500,000 лампортов
+        retryCount++;
+        continue;
+      }
+
+      // Для других ошибок увеличиваем счетчик попыток
+      retryCount++;
     }
-  };
+  }
 
+  throw new Error("Не удалось выполнить продажу после максимального количества попыток");
+};
 
-  //apiSellToken('GL8DFZXKhfmoKf3gAQhv5wAkzKFYSBMYgz9wfT5wpump', 19000)
+  //apiSellToken('3zGkLhGG5YCckYQpv6QJsMKEyTcJ9rKQ9WBgGrDq5Nka', 110000000)

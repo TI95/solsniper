@@ -1,10 +1,10 @@
-// components/CoinsList.tsx
 import React from "react";
-import { TokenPairProfile } from "../types/dex-screener-pair"; 
-import { usePools } from "../hooks/usePools"; 
+import { TokenPairProfile } from "../types/dex-screener-pair";
+import { usePools } from "../hooks/usePools";
 
 const CoinsList: React.FC = () => {
-  const pools = usePools(); 
+  const pools = usePools();
+  console.log("CoinsList: Rendering");
 
   if (!pools) {
     return <div>Loading or no pools available...</div>;
@@ -18,40 +18,57 @@ const CoinsList: React.FC = () => {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit"
+      second: "2-digit",
     });
   };
 
   const getTimeDifference = (timestamp: number): string => {
     const now = Date.now();
-    const diff = Math.floor((now - timestamp) / 1000); 
-  
+    const diff = Math.floor((now - timestamp) / 1000);
+
     const days = Math.floor(diff / 86400);
     const hours = Math.floor((diff % 86400) / 3600);
     const minutes = Math.floor((diff % 3600) / 60);
     const seconds = diff % 60;
-  
+
     if (days > 0) return `${days} д. назад`;
     if (hours > 0) return `${hours} ч. назад`;
     if (minutes > 0) return `${minutes} м. назад`;
     return `${seconds} с. назад`;
   };
 
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  const oneHourAgo = nowInSeconds - 60 * 20; // 1 час = 3600 секунд
+
+  // Убираем дубликаты токенов
+  const uniquePools = pools.filter(
+    (pool, index, self) =>
+      index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
+  );
+
   return (
     <div className="">
-      {pools.map((pool: TokenPairProfile) => (
-        pool.chainId === 'solana' && pool.dexId === 'raydium' && pool.liquidity.usd >= 30000 ? (
-          <div key={pool.pairAddress}>
+      {uniquePools.map((pool: TokenPairProfile) =>
+        pool.chainId === "solana" &&
+        pool.dexId === "raydium" &&
+        pool.liquidity.usd >= 30000 &&
+      //  pool.marketCap >= 800000000 &&
+        Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo ? (
+          <div key={pool.baseToken.address}>
             <a href={pool.url} target="_blank" rel="noopener noreferrer">
               Link
             </a>
             <p>Token Name: {pool.baseToken.name}</p>
-            <p className="font-semibold  text-amber-400">Token CA: {pool.baseToken.address}</p>
-            <p> Создано в: {formatDateTime(pool.pairCreatedAt)}</p>
-            <p className="mb-5"> Прошло время с момента создания: {getTimeDifference(pool.pairCreatedAt)}</p>
+            <p className="font-semibold text-amber-400">
+              Token CA: {pool.baseToken.address}
+            </p>
+            <p>Создано в: {formatDateTime(pool.pairCreatedAt)}</p>
+            <p className="mb-5">
+              Прошло время с момента создания: {getTimeDifference(pool.pairCreatedAt)}
+            </p>
           </div>
         ) : null
-      ))}
+      )}
     </div>
   );
 };
