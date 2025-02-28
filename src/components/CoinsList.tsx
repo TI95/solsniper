@@ -4,7 +4,6 @@ import { usePools } from "../hooks/usePools";
 
 const CoinsList: React.FC = () => {
   const pools = usePools();
-  console.log("CoinsList: Rendering");
 
   if (!pools) {
     return <div>Loading or no pools available...</div>;
@@ -46,14 +45,20 @@ const CoinsList: React.FC = () => {
       index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
   );
 
+  const filteredPools = uniquePools.filter(
+    (pool: TokenPairProfile) =>
+      pool.chainId === "solana" &&
+      pool.dexId === "raydium" &&
+      pool.liquidity.usd >= 25000 &&
+      pool.marketCap <= 1000000 &&
+      pool.boosts.active >= 500 &&
+      Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
+  );
+
   return (
     <div className="">
-      {uniquePools.map((pool: TokenPairProfile) =>
-        pool.chainId === "solana" &&
-        pool.dexId === "raydium" &&
-        pool.liquidity.usd >= 30000 &&
-      //  pool.marketCap >= 800000000 &&
-        Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo ? (
+      {filteredPools.length > 0 ? (
+        filteredPools.map((pool: TokenPairProfile) => (
           <div key={pool.baseToken.address}>
             <a href={pool.url} target="_blank" rel="noopener noreferrer">
               Link
@@ -66,8 +71,13 @@ const CoinsList: React.FC = () => {
             <p className="mb-5">
               Прошло время с момента создания: {getTimeDifference(pool.pairCreatedAt)}
             </p>
+            <p>
+               Бустов у Токена: {pool.boosts.active}
+            </p>
           </div>
-        ) : null
+        ))
+      ) : (
+        <div>Нет подходящих токенов</div>
       )}
     </div>
   );

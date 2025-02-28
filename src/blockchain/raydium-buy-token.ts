@@ -154,5 +154,6 @@ export const apibuyToken = async (tokenAddress: PublicKey, tokenAmount: number):
   }
 
   throw new Error("Не удалось выполнить покупку после максимального количества попыток");
+  
 };
   //apibuyToken( new PublicKey('4MpXgiYj9nEvN1xZYZ4qgB6zq5r2JMRy54WaQu5fpump'), 20000)

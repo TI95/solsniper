@@ -1,13 +1,16 @@
 import { useAutoTrade } from "../hooks/useAutoTrade";
 
 const AutoTradeComponent = () => {
-  const { prices, soldTokens} = useAutoTrade();
+  const { prices, soldTokens, startAutoTrade, stopAutoTrade } = useAutoTrade();
 
   return (
     <div>
    
       <h1>Auto Trade Bot</h1>
-      
+      <div className="flex flex-col items-start">
+      <button style={{ marginBottom: "0.5rem" }} className="border-b-yellow-300" onClick={startAutoTrade}>Запустить автотрейдинг</button>
+      <button onClick={stopAutoTrade}>Остановить автотрейдинг</button>
+      </div>
       <h2>Текущие цены токенов:</h2>
       <ul>
         {Object.entries(prices).map(([tokenAddress, price]) => (
