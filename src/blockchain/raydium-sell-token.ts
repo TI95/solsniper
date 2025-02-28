@@ -181,7 +181,7 @@ export const apiSellToken = async (tokenAddress: string, amountInLamports: numbe
     data: { default: { vh: number; h: number; m: number } };
   }>(`${API_URLS.BASE_HOST}${API_URLS.PRIORITY_FEE}`);
 
-  let priorityFee = data.data.default.h; // Начальное значение комиссии из API
+  let priorityFee = data.data.default.vh; // Начальное значение комиссии из API
 
   while (retryCount <= MAX_RETRIES) { // Цикл попыток
     try {

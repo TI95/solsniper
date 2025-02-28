@@ -47,12 +47,12 @@ const CoinsList: React.FC = () => {
 
   const filteredPools = uniquePools.filter(
     (pool: TokenPairProfile) =>
-      pool.chainId === "solana" &&
-      pool.dexId === "raydium" &&
-      pool.liquidity.usd >= 25000 &&
-      pool.marketCap <= 1000000 &&
-      pool.boosts.active >= 500 &&
-      Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
+      pool.chainId === 'solana' &&
+    pool.dexId === 'raydium' &&
+    pool.liquidity.usd >= 25000 &&
+    pool.marketCap <= 1000000 &&
+    pool.boosts.active >= 10 &&
+    Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
   );
 
   return (
