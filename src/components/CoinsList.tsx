@@ -49,9 +49,9 @@ const CoinsList: React.FC = () => {
     (pool: TokenPairProfile) =>
       pool.chainId === 'solana' &&
     pool.dexId === 'raydium' &&
-    pool.liquidity.usd >= 25000 &&
+    pool.liquidity.usd >=30000 &&
     pool.marketCap <= 1000000 &&
-    pool.boosts.active >= 10 &&
+    pool.boosts.active >= 500 &&
     Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
   );
 

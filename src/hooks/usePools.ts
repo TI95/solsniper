@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { TokenPairProfile } from "@/types/dex-screener-pair";
-import { latestBoostedTokens } from "@/api/a";
+import { latestBoostedTokens } from "@/api/boosted-tokens-api";
 
 export const usePools = (): TokenPairProfile[] | null => {
   const [pools, setPools] = useState<TokenPairProfile[] | null>(null);

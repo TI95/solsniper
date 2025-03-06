@@ -139,7 +139,7 @@ export const useAutoTrade = () => {
     purchasedToken: PurchasedToken,
     priceInNative: number
   ): number => {
-    const sellPercentage = 0.98;
+    const sellPercentage = 0.95;
     const tokenAmountInLamports = purchasedToken.amountInLamports * sellPercentage;
     const tokenAmount = tokenAmountInLamports / Math.pow(10, purchasedToken.decimals);
     const solAmount = tokenAmount * priceInNative;
@@ -155,7 +155,7 @@ export const useAutoTrade = () => {
       }
 
       const nowInSeconds = Math.floor(Date.now() / 1000);
-      const oneHourAgo = nowInSeconds - 60 * 60;
+      const oneHourAgo = nowInSeconds - 60 * 20;
       const uniquePools = pools.filter(
         (pool, index, self) => index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
       );
@@ -164,9 +164,9 @@ export const useAutoTrade = () => {
         (pool: TokenPairProfile) =>
           pool.chainId === 'solana' &&
           pool.dexId === 'raydium' &&
-          pool.liquidity.usd >= 55000 &&
-          pool.marketCap <= 1000000 &&
-          pool.boosts.active >= 500 &&
+          pool.liquidity.usd >= 25000 &&
+          pool.marketCap <= 300000 &&
+          pool.boosts.active >= 100 &&
           Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
       );
       console.log("filteredPools:", filteredPools);
@@ -212,8 +212,8 @@ export const useAutoTrade = () => {
           continue;
         }
 
-       /*    const initialPrice = initialPrices[tokenAddress];
-        if (currentPrice >= initialPrice * 0.8) {
+        //  const initialPrice = initialPrices[tokenAddress];
+       /* if (currentPrice >= initialPrice * 0.8) {
           console.log(`❌ Цена токена ${tokenAddress} не упала на 20%, пропускаем покупку.`);
           continue;
         } */
@@ -226,7 +226,7 @@ export const useAutoTrade = () => {
 
         try {
           const decimals = await getTokenDecimals(tokenAddress);
-          const buyResponse = await apibuyToken(publicKey, 110000000); // 0.11 SOL
+          const buyResponse = await apibuyToken(publicKey, 11001); // 0.11 SOL
 
           if (!buyResponse || !buyResponse.data) {
             console.error('Ошибка: данные о покупке отсутствуют');
@@ -315,7 +315,7 @@ export const useAutoTrade = () => {
         const buyPriceInUSD = purchasedTokens[tokenAddress].buyPriceInUSD;
 
         console.log(`Текущая цена: ${currentPrice} USD, Цена покупки: ${buyPriceInUSD} USD, Цена в SOL: ${priceInNative}`);
-        const sellThreshold = buyPriceInUSD * 0.7;
+        const sellThreshold = buyPriceInUSD * 0.8;
 
     
         if (currentPrice >= buyPriceInUSD * 1.2) {
