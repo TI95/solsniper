@@ -1,16 +1,28 @@
+//dex screener boosted tokens API
+
+import { BoostedToken } from "@/types/boosted-token";
+import { DexScreenerBoostedTokensResponse } from "@/types/boosted-tokens-response";
 import { TokenPairProfile } from "@/types/dex-screener-pair";
 import axios from "axios";
 
+
+
+
 export const latestBoostedTokens = async (): Promise<TokenPairProfile[] | null> => {
   try {
-    const response = await axios.get<any>(
+    const response = await axios.get<DexScreenerBoostedTokensResponse>(
       `https://api.dexscreener.com/token-boosts/latest/v1`
     );
 
+    if (!Array.isArray(response.data)) {
+      console.error('Expected an array, got:', response.data);
+      return null;
+    }
     // Фильтруем токены по условию
     const filteredTokens = response.data.filter(
-      (token: any) => token.amount >= 10 && token.chainId
+      (token: BoostedToken) => token.amount >= 10 && token.chainId
     );
+
 
     // Получаем информацию о парах для отфильтрованных токенов
     const tokenPairs = await getTokenPairInfo(filteredTokens);
@@ -23,14 +35,14 @@ export const latestBoostedTokens = async (): Promise<TokenPairProfile[] | null> 
   }
 };
 
-async function getTokenPairInfo(data: any[]): Promise<TokenPairProfile[]> {
+async function getTokenPairInfo(data: BoostedToken[]): Promise<TokenPairProfile[]> {
   const pairsArray = await Promise.all(
     data.map(async (token) => {
       try {
         const response = await axios.get(
           `https://api.dexscreener.com/token-pairs/v1/${token.chainId}/${token.tokenAddress}`
         );
-        
+
         return response.data;
       } catch (error) {
         console.error(`Error fetching pair info for token: ${token.tokenAddress}`, error);
@@ -41,4 +53,4 @@ async function getTokenPairInfo(data: any[]): Promise<TokenPairProfile[]> {
 
   return pairsArray.flat();
 }
- 
+

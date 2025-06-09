@@ -1,7 +1,5 @@
- 
-export type TokenPairProfile = {
+ export type TokenPairProfile = {
 
- 
     chainId: string;
     dexId: string;
     url: string;

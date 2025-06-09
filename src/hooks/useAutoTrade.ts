@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePools } from './usePools';
 import axios from 'axios';
 import { apibuyToken } from '../blockchain/raydium-buy-token';
@@ -7,6 +7,9 @@ import { TokenPairProfile } from '../types/dex-screener-pair';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getMint } from '@solana/spl-token';
 import { LiquidErrorRaydium } from '@/types/liquid-error-raydium';
+import { apiPumpfunSwapToken } from '../blockchain/pumpfunswap-buy';
+import { SwapCompute } from '@/types/swap-compute';
+
 
 // QuickNode endpoint
 const QUICKNODE_ENDPOINT =
@@ -19,6 +22,7 @@ interface PurchasedToken {
   amountInLamports: number;
   decimals: number;
   buyPriceInUSD: number;
+  dexId: 'raydium' | 'pumpswap';
 }
 
 interface SoldToken {
@@ -27,6 +31,7 @@ interface SoldToken {
   sellPrice: number;
   profit: number;
   link: string;
+  soldAtLoss?: boolean;
 }
 
 const savePurchasedTokensToLocalStorage = (tokens: Record<string, PurchasedToken>) => {
@@ -66,7 +71,8 @@ const loadBlacklistedTokensFromLocalStorage = (): Set<string> => {
   return new Set();
 };
 
-const purchasedTokens: Record<string, PurchasedToken> = loadPurchasedTokensFromLocalStorage();
+// Инициализируем purchasedTokens пустым объектом
+const purchasedTokens: Record<string, PurchasedToken> = {};
 
 export const useAutoTrade = () => {
   const pools = usePools();
@@ -76,20 +82,40 @@ export const useAutoTrade = () => {
   const [lastPurchaseTime, setLastPurchaseTime] = useState<number>(0);
   const [isSelling, setIsSelling] = useState<Record<string, boolean>>({});
   const [processingTokens, setProcessingTokens] = useState<Set<string>>(new Set());
-  const [soldTokensHistory, setSoldTokensHistory] = useState<Set<string>>(new Set());
+  const [soldTokensHistory, setSoldTokensHistory] = useState<Set<string>>(loadPurchasedTokensHistoryFromLocalStorage());
   const [purchasedTokensHistory, setPurchasedTokensHistory] = useState<Set<string>>(
     loadPurchasedTokensHistoryFromLocalStorage()
   );
   const [blacklistedTokens, setBlacklistedTokens] = useState<Set<string>>(loadBlacklistedTokensFromLocalStorage());
-  const [isStarted, setIsStarted] = useState(false);
-  const [isStopped, setIsStopped] = useState(false);
   const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
   const solAddress = 'So11111111111111111111111111111111111111112';
 
+  // Создаем ref для синхронного доступа к processingTokens
+  const processingTokensRef = useRef<Set<string>>(new Set());
+  processingTokensRef.current = processingTokens;
+
+  // Очистка localStorage только при первом запуске программы
   useEffect(() => {
-    if (!isStarted || isStopped) return;
-    savePurchasedTokensHistoryToLocalStorage(purchasedTokensHistory);
-  }, [purchasedTokensHistory, isStarted, isStopped]);
+    const isFirstRun = localStorage.getItem('isFirstRun') === null;
+    if (isFirstRun) {
+      console.log('Это первый запуск программы, очищаем localStorage');
+      localStorage.clear();
+      savePurchasedTokensToLocalStorage(purchasedTokens);
+      savePurchasedTokensHistoryToLocalStorage(new Set());
+      saveBlacklistedTokensToLocalStorage(new Set());
+      setPurchasedTokensHistory(new Set());
+      setBlacklistedTokens(new Set());
+      setSoldTokensHistory(new Set());
+      localStorage.setItem('isFirstRun', 'false');
+    } else {
+      console.log('Это не первый запуск, localStorage не очищается');
+      const loadedPurchasedTokens = loadPurchasedTokensFromLocalStorage();
+      Object.assign(purchasedTokens, loadedPurchasedTokens);
+      setPurchasedTokensHistory(loadPurchasedTokensHistoryFromLocalStorage());
+      setBlacklistedTokens(loadBlacklistedTokensFromLocalStorage());
+      setSoldTokensHistory(loadPurchasedTokensHistoryFromLocalStorage());
+    }
+  }, []);
 
   useEffect(() => {
     saveBlacklistedTokensToLocalStorage(blacklistedTokens);
@@ -146,30 +172,42 @@ export const useAutoTrade = () => {
     return Math.floor(solAmount * 1e9);
   };
 
+
   useEffect(() => {
     const buyTokens = async () => {
-      console.log("pools:", pools);
-      if (!pools || isBuying || Object.keys(purchasedTokens).length >= 2) {
+      console.log('pools:', pools);
+
+      // Создаем локальные копии для атомарных проверок
+      const currentlyProcessing = new Set(processingTokensRef.current);
+      const currentlyPurchased = Object.keys(purchasedTokens);
+
+      if (!pools || isBuying || currentlyPurchased.length >= 2) {
         console.log('Покупка заблокирована: нет pools, идет покупка или достигнут лимит токенов');
         return;
       }
 
       const nowInSeconds = Math.floor(Date.now() / 1000);
-      const oneHourAgo = nowInSeconds - 60 * 20;
-      const uniquePools = pools.filter(
-        (pool, index, self) => index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
-      );
+      const oneHourAgo = nowInSeconds - 60 * 25; //20 def
+
+      // Используем Map для гарантированно уникальных пулов
+      const uniquePoolsMap = new Map<string, TokenPairProfile>();
+      pools.forEach(pool => {
+        if (!uniquePoolsMap.has(pool.baseToken.address)) {
+          uniquePoolsMap.set(pool.baseToken.address, pool);
+        }
+      });
+      const uniquePools = Array.from(uniquePoolsMap.values());
 
       const filteredPools = uniquePools.filter(
         (pool: TokenPairProfile) =>
           pool.chainId === 'solana' &&
-          pool.dexId === 'raydium' &&
+          (pool.dexId === 'raydium' || pool.dexId === 'pumpswap') &&
           pool.liquidity.usd >= 25000 &&
           pool.marketCap <= 300000 &&
-          pool.boosts.active >= 100 &&
+          pool.boosts.active >= 50 &&
           Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
       );
-      console.log("filteredPools:", filteredPools);
+      console.log('filteredPools:', filteredPools);
 
       if (nowInSeconds - lastPurchaseTime < 30) {
         console.log('Слишком рано для покупки, осталось:', 30 - (nowInSeconds - lastPurchaseTime), 'секунд');
@@ -177,72 +215,100 @@ export const useAutoTrade = () => {
       }
 
       for (const pool of filteredPools) {
-        if (Object.keys(purchasedTokens).length >= 2) {
-          console.log('Достигнут лимит в 2 токена, покупка остановлена.');
-          break;
-        }
-
         const tokenAddress = pool.baseToken.address;
 
-        if (purchasedTokensHistory.has(tokenAddress)) {
-          console.log(`❌ Токен ${tokenAddress} уже был куплен ранее.`);
-          continue;
-        }
-        if (blacklistedTokens.has(tokenAddress)) {
-          console.log(`❌ Токен ${tokenAddress} в черном списке, пропускаем.`);
+        // Детальное логирование состояния токена
+        console.log('Checking token:', tokenAddress, {
+          inProcessing: currentlyProcessing.has(tokenAddress),
+          alreadyPurchased: currentlyPurchased.includes(tokenAddress),
+          inHistory: purchasedTokensHistory.has(tokenAddress),
+          blacklisted: blacklistedTokens.has(tokenAddress)
+        });
+
+        // Усиленная проверка перед покупкой
+        if (
+          currentlyProcessing.has(tokenAddress) ||
+          currentlyPurchased.includes(tokenAddress) ||
+          purchasedTokensHistory.has(tokenAddress) ||
+          soldTokensHistory.has(tokenAddress) ||
+          blacklistedTokens.has(tokenAddress)
+        ) {
+          console.log(`❌ Токен ${tokenAddress} не подходит для покупки, пропускаем`);
           continue;
         }
 
-        const isTokenSold = soldTokens.some((sold) => sold.tokenAddress === tokenAddress);
-        if (isTokenSold) {
-          console.log(`Токен ${tokenAddress} уже был продан, пропускаем покупку`);
-          continue;
-        }
-
-        if (purchasedTokens[tokenAddress] || processingTokens.has(tokenAddress)) {
-          console.log(`Токен ${tokenAddress} уже куплен или в процессе, пропускаем`);
-          continue;
-        }
+        // Атомарно добавляем токен в processing
+        currentlyProcessing.add(tokenAddress);
+        setProcessingTokens(new Set(currentlyProcessing));
+        processingTokensRef.current = new Set(currentlyProcessing);
 
         const priceData = await getTokenPrice(tokenAddress);
         const currentPrice = priceData.value;
         if (!initialPrices[tokenAddress]) {
           setInitialPrices((prev) => ({ ...prev, [tokenAddress]: currentPrice }));
           console.log(`Установлена начальная цена для токена ${tokenAddress}: ${currentPrice}`);
+
+          // Удаляем из processing, так как покупка не состоялась
+          currentlyProcessing.delete(tokenAddress);
+          setProcessingTokens(new Set(currentlyProcessing));
+          processingTokensRef.current = new Set(currentlyProcessing);
           continue;
         }
 
-        //  const initialPrice = initialPrices[tokenAddress];
-       /* if (currentPrice >= initialPrice * 0.8) {
-          console.log(`❌ Цена токена ${tokenAddress} не упала на 20%, пропускаем покупку.`);
-          continue;
-        } */
-        
-
-        const publicKey = new PublicKey(tokenAddress);
-        setProcessingTokens((prev) => new Set(prev).add(tokenAddress));
         setIsBuying(true);
         console.log('Начало покупки токена:', tokenAddress);
 
         try {
           const decimals = await getTokenDecimals(tokenAddress);
-          const buyResponse = await apibuyToken(publicKey, 11001); // 0.11 SOL
+          let buyResponse;
+          if (pool.dexId === 'pumpswap') {
+            console.log(`🔄 Используем pumpfun для покупки ${tokenAddress}`);
+            buyResponse = await apiPumpfunSwapToken(new PublicKey(tokenAddress), 0.005 , 'buy'); // 0.11 SOL
+          } else {
+            console.log(`🔄 Используем raydium для покупки ${tokenAddress}`);
+            buyResponse = await apibuyToken(new PublicKey(tokenAddress), 15000000); // 0.11 SOL
+          }
 
-          if (!buyResponse || !buyResponse.data) {
+          function isSwapCompute(response: any): response is SwapCompute {
+            return response && 'data' in response;
+          }
+          if (!buyResponse) {
             console.error('Ошибка: данные о покупке отсутствуют');
             continue;
           }
 
-          const outputAmount = Number(buyResponse.data.outputAmount); // Лампорты токена
-          const inputAmount = Number(buyResponse.data.inputAmount);   // Лампорты SOL
           const solPrice = await getSOLPrice();
-          const amountInTokens = outputAmount / Math.pow(10, decimals); // Количество токенов
-          const priceInSol = (inputAmount / 1e9) / amountInTokens; // Цена 1 токена в SOL
-          const buyPriceInUSD = priceInSol * solPrice; // Цена 1 токена в USD
-          const totalCost = (inputAmount / 1e9) * solPrice;
+          let outputAmount: number;       // Сколько raw-токенов
+          let inputAmount: number;        // Сколько SOL в лампортах
+          let amountInTokens: number;     // Сколько нормализованных токенов
+          let priceInSol: number;         // Цена в SOL	
+          let buyPriceInUSD: number;      // Цена в USD
+          let totalCost: number;          // Общая стоимость в USD
+
+          if (isSwapCompute(buyResponse)) {
+            // SwapCompute: нужно вручную нормализовать
+            outputAmount = Number(buyResponse.data.outputAmount) / 1e9;
+            inputAmount = Number(buyResponse.data.inputAmount);
+            amountInTokens = outputAmount / Math.pow(10, decimals);
+            priceInSol = (inputAmount / 1e9) / amountInTokens;
+            buyPriceInUSD = priceInSol * solPrice;
+            totalCost = (inputAmount / 1e9) * solPrice;
+
+          } else {
+            // SwapResponse: amountOut уже в токенах
+            outputAmount = buyResponse.rate.amountOut;
+            inputAmount = buyResponse.rate.amountIn;
+            amountInTokens = buyResponse.rate.amountOut;
+            buyPriceInUSD = buyResponse.rate.price.usd;
+            priceInSol = buyResponse.rate.price.quote
+            totalCost = buyPriceInUSD* outputAmount;
+          }
+
+          // Пример расчётов
+
 
           console.log(`Покупка ${tokenAddress}:`);
-          console.log(`- inputAmount: ${inputAmount / 1e9} SOL`);
+          console.log(`- inputAmount: ${inputAmount} SOL`);
           console.log(`- outputAmount: ${amountInTokens} токенов`);
           console.log(`- solPrice: ${solPrice} USD`);
           console.log(`- priceInSol: ${priceInSol} SOL`);
@@ -256,9 +322,17 @@ export const useAutoTrade = () => {
             amountInLamports: outputAmount,
             decimals,
             buyPriceInUSD,
+            dexId: pool.dexId as 'raydium' | 'pumpswap',
           };
           savePurchasedTokensToLocalStorage(purchasedTokens);
-          setPurchasedTokensHistory((prev) => new Set(prev).add(tokenAddress));
+
+          // Обновляем историю покупок
+          setPurchasedTokensHistory((prev) => {
+            const newSet = new Set(prev).add(tokenAddress);
+            savePurchasedTokensHistoryToLocalStorage(newSet);
+            return newSet;
+          });
+
           console.log(`✅ Купили ${tokenAddress} по цене ${buyPriceInUSD} USD, количество: ${amountInTokens}`);
           setLastPurchaseTime(nowInSeconds);
         } catch (error) {
@@ -273,11 +347,9 @@ export const useAutoTrade = () => {
           }
         } finally {
           setIsBuying(false);
-          setProcessingTokens((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(tokenAddress);
-            return newSet;
-          });
+          currentlyProcessing.delete(tokenAddress);
+          setProcessingTokens(new Set(currentlyProcessing));
+          processingTokensRef.current = new Set(currentlyProcessing);
         }
       }
     };
@@ -288,13 +360,10 @@ export const useAutoTrade = () => {
   }, [
     pools,
     soldTokens,
-    processingTokens,
     isBuying,
     lastPurchaseTime,
     soldTokensHistory,
     purchasedTokensHistory,
-    isStarted,
-    isStopped,
     blacklistedTokens,
     initialPrices,
   ]);
@@ -306,7 +375,6 @@ export const useAutoTrade = () => {
           console.log(`Продажа токена ${tokenAddress} уже идет, пропускаем.`);
           continue;
         }
-        
 
         const priceData = await getTokenPrice(tokenAddress);
         const currentPrice = priceData.value;
@@ -315,19 +383,28 @@ export const useAutoTrade = () => {
         const buyPriceInUSD = purchasedTokens[tokenAddress].buyPriceInUSD;
 
         console.log(`Текущая цена: ${currentPrice} USD, Цена покупки: ${buyPriceInUSD} USD, Цена в SOL: ${priceInNative}`);
-        const sellThreshold = buyPriceInUSD * 0.8;
+        const sellThreshold = buyPriceInUSD * 0.70;
 
-    
-        if (currentPrice >= buyPriceInUSD * 1.2) {
-          console.log(`📈 Продаем ${tokenAddress} за ${currentPrice} USD (цена выросла на 20%)`);
+        if (currentPrice <= buyPriceInUSD * 0.10) {
+          delete purchasedTokens[tokenAddress];
+          savePurchasedTokensToLocalStorage(purchasedTokens);
+        }
+
+        if (currentPrice >= buyPriceInUSD * 1.35) {
+          console.log(`📈 Продаем ${tokenAddress} за ${currentPrice} USD (цена выросла на 30%)`);
           setIsSelling((prev) => ({ ...prev, [tokenAddress]: true }));
 
           const tokenData = purchasedTokens[tokenAddress];
           const sellAmountInSolLamports = calculateSellAmountInSolLamports(tokenData, priceInNative);
-          console.log(`Продаем 98% токенов за ${sellAmountInSolLamports} лампортов SOL`);
+          console.log(`Продаем 95% токенов за ${sellAmountInSolLamports} лампортов SOL`);
 
           try {
-            await apiSellToken(tokenAddress, sellAmountInSolLamports);
+            if (tokenData.dexId === 'pumpswap') {
+              await apiPumpfunSwapToken(new PublicKey(tokenAddress), tokenData.amount, 'sell');
+            } else {
+              await apiSellToken(tokenAddress, sellAmountInSolLamports);
+            }
+
             delete purchasedTokens[tokenAddress];
             savePurchasedTokensToLocalStorage(purchasedTokens);
 
@@ -341,6 +418,11 @@ export const useAutoTrade = () => {
 
             setSoldTokens((prev) => [...prev, soldToken]);
             setSoldTokensHistory((prev) => new Set(prev).add(tokenAddress));
+            setPurchasedTokensHistory((prev) => {
+              const newSet = new Set(prev).add(tokenAddress);
+              savePurchasedTokensHistoryToLocalStorage(newSet);
+              return newSet;
+            });
           } catch (error) {
             console.error('❌ Ошибка при продаже токена:', error);
             if ((error as LiquidErrorRaydium).msg?.includes('INSUFFICIENT_LIQUIDITY')) {
@@ -360,14 +442,18 @@ export const useAutoTrade = () => {
             setIsSelling((prev) => ({ ...prev, [tokenAddress]: false }));
           }
         } else if (currentPrice <= sellThreshold) {
-          console.log(`📉 Продаем ${tokenAddress} за ${currentPrice} USD (цена упала на 30%)`);
+          console.log(`📉 Продаем ${tokenAddress} за ${currentPrice} USD (цена упала на 20%)`);
           setIsSelling((prev) => ({ ...prev, [tokenAddress]: true }));
 
           const tokenData = purchasedTokens[tokenAddress];
           const sellAmountInSolLamports = calculateSellAmountInSolLamports(tokenData, priceInNative);
 
           try {
-            await apiSellToken(tokenAddress, sellAmountInSolLamports);
+              if (tokenData.dexId === 'pumpswap') {
+              await apiPumpfunSwapToken(new PublicKey(tokenAddress), tokenData.amount, 'sell');
+            } else {
+              await apiSellToken(tokenAddress, sellAmountInSolLamports);
+            }
             delete purchasedTokens[tokenAddress];
             savePurchasedTokensToLocalStorage(purchasedTokens);
 
@@ -377,10 +463,16 @@ export const useAutoTrade = () => {
               sellPrice: currentPrice,
               profit: currentPrice - buyPriceInUSD,
               link: `https://dexscreener.com/solana/${tokenAddress}`,
+              soldAtLoss: true,
             };
 
             setSoldTokens((prev) => [...prev, soldToken]);
             setSoldTokensHistory((prev) => new Set(prev).add(tokenAddress));
+            setPurchasedTokensHistory((prev) => {
+              const newSet = new Set(prev).add(tokenAddress);
+              savePurchasedTokensHistoryToLocalStorage(newSet);
+              return newSet;
+            });
           } catch (error) {
             console.error('❌ Ошибка при продаже токена:', error);
             if ((error as LiquidErrorRaydium).msg?.includes('INSUFFICIENT_LIQUIDITY')) {
@@ -407,16 +499,7 @@ export const useAutoTrade = () => {
 
     const interval = setInterval(sellTokens, 5000);
     return () => clearInterval(interval);
-  }, [isSelling, purchasedTokens, soldTokens, soldTokensHistory, isStarted, isStopped]);
+  }, [isSelling, purchasedTokens, soldTokens, soldTokensHistory]);
 
-  const startAutoTrade = () => {
-    setIsStarted(true);
-    setIsStopped(false);
-  };
-
-  const stopAutoTrade = () => {
-    setIsStopped(true);
-  };
-
-  return { prices, soldTokens, startAutoTrade, stopAutoTrade };
+  return { prices, soldTokens };
 };

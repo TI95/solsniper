@@ -4,12 +4,12 @@ import axios from 'axios';
 import { API_URLS } from '@raydium-io/raydium-sdk-v2';
  
 
-const privateKeyArray = new Uint8Array([
-  108,251,143,173,213,5,198,239,70,98,23,59,116,242,200,81,182,96,103,28,238,183,202,103,181,160,113,99, 206,94,193,171,255, 133,65,216, 172,95,54,97,208,233,124,62,135,189,108,192,229,58,74,251,237,215,167,204,33,242,159,149,187,245,130,187
-]);
-
+const privateKeyArray = new Uint8Array(
+  import.meta.env.VITE_PRIVATE_KEY.split(',').map(Number)
+);
 export const owner: Keypair = Keypair.fromSecretKey(privateKeyArray);
-export const connection = new Connection('https://stylish-falling-glade.solana-mainnet.quiknode.pro/01796c91dbb4b4e0a971e5fe3457980aed1ac4b9');
+const QUICKNODE_ENDPOINT = import.meta.env.VITE_QUICKNODE_ENDPOINT;
+export const connection = new Connection(QUICKNODE_ENDPOINT);
 
 /**
  * Функция для продажи токена на SOL

@@ -8,7 +8,9 @@ const privateKeyArray = new Uint8Array(
   import.meta.env.VITE_PRIVATE_KEY.split(',').map(Number)
 );
 export const owner: Keypair = Keypair.fromSecretKey(privateKeyArray);
-export const connection = new Connection('https://stylish-falling-glade.solana-mainnet.quiknode.pro/01796c91dbb4b4e0a971e5fe3457980aed1ac4b9');
+const QUICKNODE_ENDPOINT = import.meta.env.VITE_QUICKNODE_ENDPOINT;
+export const connection = new Connection(QUICKNODE_ENDPOINT);
+
 
  
 
@@ -156,4 +158,4 @@ export const apibuyToken = async (tokenAddress: PublicKey, tokenAmount: number):
   throw new Error("Не удалось выполнить покупку после максимального количества попыток");
   
 };
-  //apibuyToken( new PublicKey('4MpXgiYj9nEvN1xZYZ4qgB6zq5r2JMRy54WaQu5fpump'), 20000)
+  //apibuyToken( new PublicKey('6FtbGaqgZzti1TxJksBV4PSya5of9VqA9vJNDxPwbonk'), 5000000)
