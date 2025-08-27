@@ -180,7 +180,7 @@ export const useAutoTrade = () => {
       const currentlyProcessing = new Set(processingTokensRef.current);
       const currentlyPurchased = Object.keys(purchasedTokens);
 
-      if (!pools || isBuying || currentlyPurchased.length >= 2) {
+      if (!pools || isBuying || currentlyPurchased.length >= 1) {
         console.log('Покупка заблокирована: нет pools, идет покупка или достигнут лимит токенов');
         return;
       }
@@ -201,7 +201,7 @@ export const useAutoTrade = () => {
         (pool: TokenPairProfile) =>
           pool.chainId === 'solana' &&
           (pool.dexId === 'raydium' || pool.dexId === 'pumpswap') &&
-          pool.liquidity?.usd !== undefined &&
+          //pool.liquidity?.usd !== undefined &&
           pool.liquidity.usd >= 25000 &&
           pool.marketCap <= 1300000 &&
           pool.boosts.active >= 50 &&
