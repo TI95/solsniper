@@ -35,8 +35,9 @@ const confirmTransaction = async (signature: string) => {
   });
 
   if (txResult?.meta?.err) {
-    throw new Error(`Transaction failed: ${txResult.meta.err}`);
-  }
+        throw new Error(`Transaction failed: ${JSON.stringify(txResult.meta.err, null, 2)}`);
+    }
+
 
   console.log('✅ Transaction confirmed successfully');
 };

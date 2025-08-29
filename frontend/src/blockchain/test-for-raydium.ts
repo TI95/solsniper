@@ -171,4 +171,4 @@ const example = async () => {
   // await apiSwapToken(tokenPubkey, 10, 'sell');
 };
 
-example();
+// example();

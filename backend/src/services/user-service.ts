@@ -44,7 +44,7 @@ class UserService {
         }
         const isPassEquals = await bcrypt.compare(password, user.password);
         if (!isPassEquals) {
-            throw ApiError.BadRequest('Incorrect password');
+            throw ApiError.BadRequest('Incorrect email or password');
         }
         if (!user.isActivated) {
             throw ApiError.BadRequest('Check email and activate you acc.');
@@ -61,26 +61,38 @@ class UserService {
         return token;
     }
 
-    async refresh(refreshToken: string) {
-        if (!refreshToken) {
-            throw ApiError.UnauthorizedError();
-        }
-        const userData = tokenService.validateRefreshToken(refreshToken);
-        const tokenFromDb = await tokenService.findToken(refreshToken);
-        if (!userData || !tokenFromDb) {
-            throw ApiError.UnauthorizedError();
-        }
-        const user = await UserModel.findById(userData.id);
-        if (!user) {
-            throw ApiError.UnauthorizedError();
-        }
-
-        const userDto = new UserDto(user);
-        const tokens = tokenService.generateTokens({ ...userDto });
-        await tokenService.saveToken(user._id.toString(), tokens.refreshToken);
-
-        return { ...tokens, user: userDto };
-    }
+async refresh(refreshToken: string) {
+  if (!refreshToken) {
+    console.error('Refresh: No refreshToken provided');
+    throw ApiError.UnauthorizedError();
+  }
+  const userData = tokenService.validateRefreshToken(refreshToken);
+  if (!userData) {
+    console.error('Refresh: Invalid refreshToken:', refreshToken);
+    throw ApiError.UnauthorizedError();
+  }
+  const tokenFromDb = await tokenService.findToken(refreshToken);
+  if (!tokenFromDb) {
+    console.error('Refresh: Token not found in DB:', refreshToken);
+    throw ApiError.UnauthorizedError();
+  }
+  const user = await UserModel.findById(userData.id);
+  if (!user) {
+    console.error('Refresh: User not found for ID:', userData.id);
+    throw ApiError.UnauthorizedError();
+  }
+  const userDto = new UserDto(user);
+  const tokens = tokenService.generateTokens({ ...userDto });
+  // Проверяем, действителен ли текущий токен
+  const existingToken = tokenService.validateRefreshToken(tokenFromDb.refreshToken);
+  if (existingToken) {
+    console.log('Refresh: Keeping existing valid refreshToken:', tokenFromDb.refreshToken);
+    return { accessToken: tokens.accessToken, refreshToken: tokenFromDb.refreshToken, user: userDto };
+  }
+  await tokenService.saveToken(user._id.toString(), tokens.refreshToken);
+  console.log('Refresh: New tokens generated:', tokens);
+  return { ...tokens, user: userDto };
+}
 }
 
 export default new UserService();

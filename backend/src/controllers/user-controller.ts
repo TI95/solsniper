@@ -50,7 +50,8 @@ class UserController {
             const { refreshToken } = req.cookies;
             const token = await userService.logout(refreshToken);
             res.clearCookie('refreshToken');
-            return res.json(token);
+                 return res.json(token || { message: 'Logout successful' });
+
 
         } catch (e) {
             next(e);
@@ -78,7 +79,8 @@ class UserController {
             res.cookie('refreshToken', userData.refreshToken, {
                 maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
                 httpOnly: true,
-                sameSite: 'none',
+               sameSite: 'lax',
+                
             });
             return res.json(userData);
         } catch (e) {

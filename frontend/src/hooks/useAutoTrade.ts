@@ -9,12 +9,17 @@ import { getMint } from '@solana/spl-token';
 import { LiquidErrorRaydium } from '@/types/liquid-error-raydium';
 import { apiPumpfunSwapToken } from '../blockchain/pumpfunswap-buy';
 import { SwapCompute } from '@/types/swap-compute';
+import { useSelector } from 'react-redux';
+import { selectAuth } from '@/store/authSlice';
+import api from '../api/axiosInstance';
+
 
 
 // QuickNode endpoint
 const QUICKNODE_ENDPOINT = import.meta.env.VITE_QUICKNODE_ENDPOINT;
 const connection = new Connection(QUICKNODE_ENDPOINT);
-
+const BIRDEYE_API_KEY = import.meta.env.VITE_BIRDEYE_API_KEY;
+const BIRDEYE_PRICE_API = import.meta.env.VITE_BIRDEYE_PRICE_API;
 interface PurchasedToken {
   totalCost: number;
   amount: number;
@@ -88,6 +93,7 @@ export const useAutoTrade = () => {
   const [blacklistedTokens, setBlacklistedTokens] = useState<Set<string>>(loadBlacklistedTokensFromLocalStorage());
   const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
   const solAddress = 'So11111111111111111111111111111111111111112';
+  const { accessToken } = useSelector(selectAuth);
 
   // Создаем ref для синхронного доступа к processingTokens
   const processingTokensRef = useRef<Set<string>>(new Set());
@@ -122,11 +128,11 @@ export const useAutoTrade = () => {
 
   const getTokenPrice = async (tokenAddress: string): Promise<{ value: number; priceInNative: number }> => {
     try {
-      const response = await axios.get(`https://public-api.birdeye.so/defi/price?address=${tokenAddress}`, {
+      const response = await axios.get(BIRDEYE_PRICE_API + `${tokenAddress}`, {
         headers: {
           accept: 'application/json',
           'x-chain': 'solana',
-          'X-API-KEY': '6ee39442cb2e4c17a72b854de3f97816',
+          'X-API-KEY': BIRDEYE_API_KEY,
         },
       });
       return {
@@ -141,11 +147,11 @@ export const useAutoTrade = () => {
 
   const getSOLPrice = async (): Promise<number> => {
     try {
-      const response = await axios.get(`https://public-api.birdeye.so/defi/price?address=${solAddress}`, {
+      const response = await axios.get(`${BIRDEYE_PRICE_API}${solAddress}`, {
         headers: {
           accept: 'application/json',
           'x-chain': 'solana',
-          'X-API-KEY': '6ee39442cb2e4c17a72b854de3f97816',
+          'X-API-KEY': BIRDEYE_API_KEY,
         },
       });
       return (response.data as { data: { value: number } }).data.value;
@@ -204,7 +210,7 @@ export const useAutoTrade = () => {
           //pool.liquidity?.usd !== undefined &&
           pool.liquidity.usd >= 25000 &&
           pool.marketCap <= 1300000 &&
-          pool.boosts.active >= 50 &&
+          pool.boosts.active >= 5000 &&
           Math.floor(pool.pairCreatedAt / 1000) >= oneHourAgo
       );
       console.log('filteredPools:', filteredPools);
@@ -263,7 +269,7 @@ export const useAutoTrade = () => {
           let buyResponse;
           if (pool.dexId === 'pumpswap') {
             console.log(`🔄 Используем pumpfun для покупки ${tokenAddress}`);
-            buyResponse = await apiPumpfunSwapToken(new PublicKey(tokenAddress), 0.005, 'buy'); // 0.11 SOL
+            buyResponse = await apiPumpfunSwapToken(new PublicKey(tokenAddress), 0.001, 'buy'); // 0.11 SOL
           } else {
             console.log(`🔄 Используем raydium для покупки ${tokenAddress}`);
             buyResponse = await apibuyToken(new PublicKey(tokenAddress), 15000000); // 0.11 SOL
@@ -291,8 +297,8 @@ export const useAutoTrade = () => {
             inputAmount = Number(buyResponse.data.inputAmount);
             amountInTokens = outputAmount / Math.pow(10, decimals);
             priceInSol = (inputAmount / 1e9) / amountInTokens;
-            buyPriceInUSD = priceInSol * solPrice;
-            totalCost = (inputAmount / 1e9) * solPrice;
+            buyPriceInUSD = priceInSol * solPrice || 210;
+            totalCost = (inputAmount / 1e9) * solPrice || 210;
 
           } else {
             // SwapResponse: amountOut уже в токенах
@@ -325,6 +331,24 @@ export const useAutoTrade = () => {
             dexId: pool.dexId as 'raydium' | 'pumpswap',
           };
           savePurchasedTokensToLocalStorage(purchasedTokens);
+
+          // Отправка данных на сервер
+        try {
+  if (!accessToken) {
+    console.error('No access token available. User must log in.');
+    return;
+  }
+  console.log('Sending token data to server:', purchasedTokens[tokenAddress]);
+  const response = await api.post('/tokens', purchasedTokens[tokenAddress], {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  console.log(`Token data saved to server for ${tokenAddress}:`, response.data);
+} catch (error) {
+  console.error(`Error saving token data to server for ${tokenAddress}:`, error);
+}
 
           // Обновляем историю покупок
           setPurchasedTokensHistory((prev) => {
@@ -363,6 +387,13 @@ export const useAutoTrade = () => {
     lastPurchaseTime,
     initialPrices
   ]);
+
+
+
+
+
+
+
 
   useEffect(() => {
     const sellTokens = async () => {

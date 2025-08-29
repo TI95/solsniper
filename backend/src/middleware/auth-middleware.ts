@@ -4,7 +4,7 @@ import tokenService from "../services/token-service";
 import UserDto from "../dtos/user-dto";
  
 
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
   user?: UserDto
 }
 

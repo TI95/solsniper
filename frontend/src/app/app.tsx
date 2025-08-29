@@ -19,16 +19,20 @@ const App: React.FC = () => {
     const location = useLocation();
 
 
-  useEffect(() => {
-    const protectedRoutes = ["/dashboard"];
-    if (protectedRoutes.some((path) => location.pathname.startsWith(path))) {
-      dispatch(checkAuth());
-    }
-  }, [dispatch, location.pathname]);
+useEffect(() => {
+  const protectedRoutes = ["/dashboard"];
+  const shouldCheckAuth = protectedRoutes.some((path) => 
+    location.pathname.startsWith(path)
+  );
+  
+  if (shouldCheckAuth && !user && !isLoading) {
+    dispatch(checkAuth());
+  }
+}, [dispatch, location.pathname, user, isLoading]);
   
 
   if (isLoading) {
-   return <Skeleton count={10}/>
+   return <Skeleton count={5}/>
   }
 
   return (
