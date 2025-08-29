@@ -1,0 +1,76 @@
+{
+  "name": "template-react-vite-tailwind",
+  "description": "React + Vite + Tailwind (no Anchor)",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@raydium-io/raydium-sdk-v2": "^0.1.108-alpha",
+    "@reduxjs/toolkit": "^2.8.2",
+    "@solana/spl-token": "0.4.9",
+    "@solana/wallet-adapter-base": "0.9.23",
+    "@solana/wallet-adapter-react": "0.15.35",
+    "@solana/wallet-adapter-react-ui": "0.9.35",
+    "@solana/web3.js": "1.98.0",
+    "@tabler/icons-react": "^3.15.0",
+    "@tailwindcss/vite": "^4.0.17",
+    "@tanstack/react-query": "^5.55.2",
+    "axios": "^1.11.0",
+    "clsx": "^2.1.1",
+    "daisyui": "^4.12.10",
+    "dotenv": "^16.4.7",
+    "jotai": "^2.9.3",
+    "node-stdlib-browser": "^1.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.4.1",
+    "react-loading-skeleton": "^3.5.0",
+    "react-redux": "^9.2.0",
+    "react-router": "^6.26.1",
+    "react-router-dom": "^6.26.1",
+    "tailwind-merge": "^3.0.2",
+    "template-react-vite-tailwind": "file:"
+  },
+  "devDependencies": {
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@eslint/js": "^9.9.0",
+    "@tailwindcss/postcss": "^4.0.17",
+    "@types/axios": "^0.9.36",
+    "@types/node": "^24.3.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-redux": "^7.1.34",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "0.21.5",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.9",
+    "globals": "^15.9.0",
+    "postcss": "^8.5.3",
+    "prettier": "^3.3.3",
+    "tailwindcss": "^4.0.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.0.1",
+    "vite": "^5.4.1",
+    "vite-plugin-node-polyfills": "^0.22.0",
+    "vite-tsconfig-paths": "^5.0.1"
+  },
+  "create-solana-dapp": {
+    "rename": {
+      "scaffold": {
+        "to": "{{name}}",
+        "paths": [
+          "src"
+        ]
+      }
+    }
+  }
+}
