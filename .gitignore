@@ -1,10 +1,6 @@
-<<<<<<< HEAD
 # ───────────────
 # Logs
 # ───────────────
-=======
-# Logs
->>>>>>> 0254986532735ee89cef48ec9a1595613e83df88
 logs
 *.log
 npm-debug.log*
@@ -13,7 +9,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-<<<<<<< HEAD
 # ───────────────
 # Dependencies
 # ───────────────
@@ -57,21 +52,3 @@ test-results/
 .yarn/unplugged
 .yarn/build-state.yml
 .
-=======
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-/tmp
->>>>>>> 0254986532735ee89cef48ec9a1595613e83df88
