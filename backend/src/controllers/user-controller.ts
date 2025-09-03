@@ -34,7 +34,7 @@ class UserController {
             res.cookie('refreshToken', userData.refreshToken, {
                 maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
                 httpOnly: true,
-               
+
             });
 
             return res.json(userData);
@@ -46,14 +46,14 @@ class UserController {
 
     async logout(req: Request, res: Response, next: NextFunction) {
         try {
-
             const { refreshToken } = req.cookies;
+            console.log('userController: Logout request received, refreshToken:', refreshToken || 'none');
             const token = await userService.logout(refreshToken);
             res.clearCookie('refreshToken');
-                 return res.json(token || { message: 'Logout successful' });
-
-
+            console.log('userController: Logout successful, cookie cleared');
+            return res.json(token || { message: 'Logout successful' });
         } catch (e) {
+            console.error('userController: Logout error:', e);
             next(e);
         }
     }
@@ -79,8 +79,8 @@ class UserController {
             res.cookie('refreshToken', userData.refreshToken, {
                 maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
                 httpOnly: true,
-               sameSite: 'lax',
-                
+                sameSite: 'lax',
+
             });
             return res.json(userData);
         } catch (e) {

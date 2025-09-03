@@ -55,7 +55,7 @@ const SellTokenForm: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-2xl shadow-lg">
-      <h2 className="text-xl font-bold mb-4">Продажа токена</h2>
+      <h2 className="text-xl font-bold mb-4">Продажа токена в ручную</h2>
 
       {/* Выбор платформы */}
       <div className="mb-4">

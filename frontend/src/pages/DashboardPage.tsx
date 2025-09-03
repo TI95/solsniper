@@ -6,7 +6,7 @@ import { useAutoTrade } from "@/hooks/useAutoTrade";
 import { usePools } from "@/hooks/usePools";
 import { TokenPairProfile } from "@/types/dex-screener-pair";
 import { getBuyPrice, saveBuyPrice } from "@/utils/localStorage";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Skeleton from "react-loading-skeleton";
 import 'react-loading-skeleton/dist/skeleton.css'
 
@@ -23,10 +23,36 @@ const Dasboard = () => {
     }, [prices]);
 
 
+    const uniquePools = useMemo(() => {
+        if (!pools) return [];
+        return pools.filter(
+            (pools, index, self) =>
+                index === self.findIndex((p) => p.baseToken.address === pools.baseToken.address
+                ))
+    }, [pools]);
+
+
+
+    const nowInSeconds = Math.floor(Date.now() / 1000);
+    const timeFromTokenCreated = nowInSeconds - 60 * 25; // 1 час = 3600 секунд
+
+    const filteredPools = useMemo(() => {
+        return uniquePools.filter(
+            (pool: TokenPairProfile) =>
+                pool.chainId === 'solana' &&
+                (pool.dexId === 'raydium' || pool.dexId === 'pumpswap') &&
+                pool.liquidity?.usd !== undefined &&
+                pool.liquidity.usd >= 25000 &&
+                pool.marketCap <= 1300000 &&
+                pool.boosts.active >= 50 &&
+                Math.floor(pool.pairCreatedAt / 1000) >= timeFromTokenCreated
+        );
+    }, [uniquePools, timeFromTokenCreated]);
 
     if (!pools) {
-         return <Skeleton count={10}/>
+        return <Skeleton count={10} />
     }
+
 
     const formatDateTime = (timestamp: number): string => {
         const date = new Date(timestamp);
@@ -39,8 +65,6 @@ const Dasboard = () => {
             second: "2-digit",
         });
     };
-
-
 
     const getTimeDifference = (timestamp: number): string => {
         const now = Date.now();
@@ -57,57 +81,39 @@ const Dasboard = () => {
         return `${seconds} с. назад`;
     };
 
-    const nowInSeconds = Math.floor(Date.now() / 1000);
-    const timeFromTokenCreated = nowInSeconds - 60 * 25; // 1 час = 3600 секунд
-
-    // Убираем дубликаты токенов
-    const uniquePools = pools.filter(
-        (pool, index, self) =>
-            index === self.findIndex((p) => p.baseToken.address === pool.baseToken.address)
-    );
-    console.log(uniquePools)
-    const filteredPools = uniquePools.filter(
-        (pool: TokenPairProfile) =>
-            pool.chainId === 'solana' &&
-            (pool.dexId === 'raydium' || pool.dexId === 'pumpswap') &&
-            pool.liquidity?.usd !== undefined &&
-            pool.liquidity.usd >= 25000 &&
-            pool.marketCap <= 1300000 &&
-            pool.boosts.active >= 50 &&
-            Math.floor(pool.pairCreatedAt / 1000) >= timeFromTokenCreated
-    );
-
     return (
         <MaxWidthWrapper>
             <div className="">
                 {filteredPools.length > 0 ? (
                     filteredPools.map((pool: TokenPairProfile) => (
                         <div key={pool.baseToken.address}>
-                            <a href={pool.url} target="_blank" rel="noopener noreferrer">
-                                Link
+                            <a href={pool.url} target="_blank" rel="noopener noreferrer" className="decoration-none text-blue-500 font-bold  ">
+                                Link to DexScreener
                             </a>
                             <p>Token Name: {pool.baseToken.name}</p>
-                            <p className="font-semibold text-amber-400">
+                            <p className="font-semibold text-amber-400 mb-5">
                                 Token CA: {pool.baseToken.address}
                             </p>
                             <p>Создано в: {formatDateTime(pool.pairCreatedAt)}</p>
-                            <p className="mb-5">
+                            <p className="">
                                 Прошло время с момента создания: {getTimeDifference(pool.pairCreatedAt)}
                             </p>
-                            <p>
+                            <p className="mb-5">
                                 Бустов у Токена: {pool.boosts.active}
                             </p>
                         </div>
                     ))
                 ) : (
-                    <div className="text-red-500 font-bold mb-10">Нет подходящих токенов...</div>
+                    <div className="text-red-500 font-bold mb-10 mt-20">Нет подходящих токенов...</div>
                 )}
 
-                <div className="">
+                <div className="mt-10 p-6 bg-white/50 rounded-2xl shadow-lg mb-10">
+                    <div className="">
+                        <h1 className="text-green-600 mb-20  font-bold">Токены которые бот купил</h1>
+                    </div>
 
-                    <h2 className="text-amber-500 mb-5">Токены которые бот купил</h2>
 
-                    <h2 className="mb-10">Цена покупки токена в $:</h2>
+                    <h2 className="mb-40 font-bold">Цена покупки токена в $:</h2>
                     <ul>
                         {Object.keys(prices).map((tokenAddress) => {
                             const storedBuyPrice = getBuyPrice(tokenAddress);

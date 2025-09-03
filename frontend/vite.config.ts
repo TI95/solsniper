@@ -45,8 +45,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true,
+        changeOrigin: false, // Сохраняем Origin: http://localhost:5173
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api'), // Сохраняем /api
       },
     },
   },

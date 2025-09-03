@@ -3,9 +3,9 @@
 import axios from "axios";
 import { TokenItem } from "@/types/birdete-token-item";
 import { TokenPairProfile } from "@/types/dex-screener-pair";
-import { AllTokenData } from "@/types/all-token-data";
 
 export const getTokensList = async (): Promise<TokenPairProfile[]> => {
+  const BIRDEYE_API_KEY = import.meta.env.VITE_BIRDEYE_API_KEY;
   const now = Math.floor(Date.now() / 1000);
   const oneMinutesAgo = now - 60;
   const response = await axios.get<{ data: { items: TokenItem[] } }>(
@@ -14,7 +14,7 @@ export const getTokensList = async (): Promise<TokenPairProfile[]> => {
       headers: {
         accept: 'application/json',
         'x-chain': 'solana',
-        'X-API-KEY': '6ee39442cb2e4c17a72b854de3f97816',
+        'X-API-KEY': BIRDEYE_API_KEY,
       },
     }
   );

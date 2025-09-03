@@ -19,7 +19,7 @@ const LoginPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && user.isActivated) {
       navigate("/dashboard");
     }
   }, [user, navigate]);
@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
         className="flex flex-col w-80 gap-4 bg-white shadow-md rounded-xl p-6"
 
       >
-        <h2>Login</h2>
+        <h2 className=" text-xl font-bold text-center">Логин</h2>
 
         <input
           type="email"
@@ -53,12 +53,11 @@ const LoginPage: React.FC = () => {
 
         <button type="submit"
           disabled={isLoading}
-          className="bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition">
+          className="bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition cursor-pointer">
           {isLoading ? "Logging in..." : "Login"}
         </button>
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
-        {user && <p className="text-red-500 text-sm">Welcome, {user.email}!</p>}
       </form>
     </div>
   );

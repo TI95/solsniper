@@ -13,6 +13,7 @@ export interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isLoggingOut: boolean;  
   error: string | null;
   registered: boolean;
 }
@@ -23,6 +24,7 @@ const initialState: AuthState = {
   refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
+  isLoggingOut: false,  
   error: null,
   registered: false,
 };
@@ -60,6 +62,7 @@ export const logout = createAsyncThunk<void, void, { rejectValue: string }>(
   async (_, thunkAPI) => {
     try {
       await api.post('/logout');
+      console.log('Logout request successful');
       return;
     } catch (e: any) {
       console.error('Logout error:', e);
@@ -88,6 +91,7 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     resetAuthState(state) {
+      console.log('Resetting auth state');
       state.user = null;
       state.accessToken = null;
       state.refreshToken = null;
@@ -95,6 +99,7 @@ const authSlice = createSlice({
       state.error = null;
       state.registered = false;
       state.isLoading = false;
+      state.isLoggingOut = false;  
     },
   },
   extraReducers: (builder) => {
@@ -102,6 +107,7 @@ const authSlice = createSlice({
       state.isLoading = true;
       state.error = null;
     });
+
     builder.addCase(login.fulfilled, (state, action) => {
       state.isLoading = false;
       state.accessToken = action.payload.accessToken;
@@ -109,6 +115,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isAuthenticated = true;
     });
+
     builder.addCase(login.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Login failed';
@@ -118,6 +125,7 @@ const authSlice = createSlice({
       state.isLoading = true;
       state.error = null;
     });
+
     builder.addCase(registration.fulfilled, (state, action) => {
       state.isLoading = false;
       state.registered = true;
@@ -126,6 +134,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isAuthenticated = true;
     });
+
     builder.addCase(registration.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Registration failed';
@@ -134,7 +143,9 @@ const authSlice = createSlice({
     builder.addCase(logout.pending, (state) => {
       state.isLoading = true;
       state.error = null;
+      state.isLoggingOut = true;  
     });
+
     builder.addCase(logout.fulfilled, (state) => {
       state.user = null;
       state.accessToken = null;
@@ -143,16 +154,24 @@ const authSlice = createSlice({
       state.error = null;
       state.registered = false;
       state.isLoading = false;
+      state.isLoggingOut = false;
     });
+
     builder.addCase(logout.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Logout failed';
+      state.isLoggingOut = false;
+      state.user = null;
+      state.accessToken = null;
+      state.refreshToken = null;
+      state.isAuthenticated = false;
     });
 
     builder.addCase(checkAuth.pending, (state) => {
       state.isLoading = true;
       state.error = null;
     });
+
     builder.addCase(checkAuth.fulfilled, (state, action) => {
       state.isLoading = false;
       state.accessToken = action.payload.accessToken;
@@ -160,10 +179,10 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.isAuthenticated = true;
     });
+
     builder.addCase(checkAuth.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Auth check failed';
-      state.isAuthenticated = false;
     });
   },
 });

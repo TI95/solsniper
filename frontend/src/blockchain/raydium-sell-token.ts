@@ -11,6 +11,16 @@ export const owner: Keypair = Keypair.fromSecretKey(privateKeyArray);
 const QUICKNODE_ENDPOINT = import.meta.env.VITE_QUICKNODE_ENDPOINT;
 export const connection = new Connection(QUICKNODE_ENDPOINT);
 
+
+interface SwapResponse {
+  id: string;
+  success: boolean;
+  version: string;
+  msg?: string;
+  data?: any; // если есть поле data — можно уточнить
+}
+
+
 /**
  * Функция для продажи токена на SOL
  * @param inputMint - Адрес токена, который продаётся
@@ -63,7 +73,7 @@ export class LiquidErrorRaydium extends Error {
   console.log('Output Token Account:', outputTokenAcc.toBase58());
 
   // Получаем данные для обмена
-  const { data: swapResponse } = await axios.get(
+  const { data: swapResponse } = await axios.get<SwapResponse>(
     `${API_URLS.SWAP_HOST}/compute/swap-base-out?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippage * 100}&txVersion=${txVersion}`
   );
 

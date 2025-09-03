@@ -161,6 +161,7 @@ export const useAutoTrade = () => {
     }
   };
 
+
   const getTokenDecimals = async (tokenAddress: string): Promise<number> => {
     const mintAccount = await getMint(connection, new PublicKey(tokenAddress));
     return mintAccount.decimals;
@@ -201,7 +202,9 @@ export const useAutoTrade = () => {
           uniquePoolsMap.set(pool.baseToken.address, pool);
         }
       });
+
       const uniquePools = Array.from(uniquePoolsMap.values());
+
 
       const filteredPools = uniquePools.filter(
         (pool: TokenPairProfile) =>
@@ -333,22 +336,22 @@ export const useAutoTrade = () => {
           savePurchasedTokensToLocalStorage(purchasedTokens);
 
           // Отправка данных на сервер
-        try {
-  if (!accessToken) {
-    console.error('No access token available. User must log in.');
-    return;
-  }
-  console.log('Sending token data to server:', purchasedTokens[tokenAddress]);
-  const response = await api.post('/tokens', purchasedTokens[tokenAddress], {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  console.log(`Token data saved to server for ${tokenAddress}:`, response.data);
-} catch (error) {
-  console.error(`Error saving token data to server for ${tokenAddress}:`, error);
-}
+          try {
+            if (!accessToken) {
+              console.error('No access token available. User must log in.');
+              return;
+            }
+            console.log('Sending token data to server:', purchasedTokens[tokenAddress]);
+            const response = await api.post('/tokens', purchasedTokens[tokenAddress], {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            console.log(`Token data saved to server for ${tokenAddress}:`, response.data);
+          } catch (error) {
+            console.error(`Error saving token data to server for ${tokenAddress}:`, error);
+          }
 
           // Обновляем историю покупок
           setPurchasedTokensHistory((prev) => {

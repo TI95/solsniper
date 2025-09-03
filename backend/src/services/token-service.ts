@@ -23,8 +23,8 @@ class TokenService {
 
 
     generateTokens(payload: TokenPayload) {
-        const accessToken = jwt.sign(payload, accesTokenEnv as string, { expiresIn: '15m' });
-        const refreshToken = jwt.sign(payload, refreshTokenEnv as string, { expiresIn: '30d' });
+        const accessToken = jwt.sign(payload, accesTokenEnv as string, { expiresIn: '24h' });
+        const refreshToken = jwt.sign(payload, refreshTokenEnv as string, { expiresIn: '90' });
         return {
             accessToken,
             refreshToken

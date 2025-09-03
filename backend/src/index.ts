@@ -13,21 +13,22 @@ dotenv.config();
 
 
 const PORT = process.env.PORT || 3000;
-const CLIENT_URL ='http://localhost:5173';
+const CLIENT_URL = 'http://localhost:5173';
+
 const app = express();
 
 console.log('CLIENT_URL:', CLIENT_URL);
 
-app.use(express.json());
-app.use(cookieParser());
+
 app.use(cors({
-    origin: CLIENT_URL,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Указываем разрешённые методы
-    allowedHeaders: ['Content-Type', 'Authorization'], // Указываем разрешённые заголовки
-    
+  origin: CLIENT_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
- 
+
+app.use(cookieParser());
+app.use(express.json());
 app.use('/api', router);
 app.use(errorMiddleware);
 

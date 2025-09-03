@@ -25,7 +25,7 @@ export default function WalletGenerator() {
     <div className="p-4">
       <button
         onClick={generateWallet}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 transition-colors"
       >
         Создать кошелёк
       </button>

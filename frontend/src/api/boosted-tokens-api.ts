@@ -39,7 +39,7 @@ async function getTokenPairInfo(data: BoostedToken[]): Promise<TokenPairProfile[
   const pairsArray = await Promise.all(
     data.map(async (token) => {
       try {
-        const response = await axios.get(
+        const response = await axios.get<TokenPairProfile[] >(
           `https://api.dexscreener.com/token-pairs/v1/${token.chainId}/${token.tokenAddress}`
         );
 

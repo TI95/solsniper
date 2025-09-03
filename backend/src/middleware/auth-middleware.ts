@@ -2,10 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import ApiError from "../exceptions/api-errors";
 import tokenService from "../services/token-service";
 import UserDto from "../dtos/user-dto";
- 
+
 
 export interface AuthRequest extends Request {
-  user?: UserDto
+    user?: UserDto
 }
 
 export default function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
@@ -27,7 +27,6 @@ export default function authMiddleware(req: AuthRequest, res: Response, next: Ne
             return next(ApiError.UnauthorizedError());
         }
 
-        
         req.user = userData;
         next();
     } catch (e) {
