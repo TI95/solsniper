@@ -10,6 +10,7 @@ import RegistrationPage from "@/pages/RegistrationPage";
 import ActivationNotice from "@/pages/ActivationNotificationPage";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import AccountSettingsPage from "@/pages/AccountSettingsPage";
 
 const App: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -17,32 +18,24 @@ const App: React.FC = () => {
   const location = useLocation();
   const [initialAuthCheckDone, setInitialAuthCheckDone] = useState(false);
 
-  useEffect(() => {
-    const protectedRoutes = ["/dashboard"];
-    const isProtectedRoute = protectedRoutes.some((path) =>
-      location.pathname.startsWith(path)
-    );
+useEffect(() => {
+  const publicRoutes = ["/login", "/registration", "/activation-notice"];
+  const isPublicRoute = publicRoutes.some((path) =>
+    location.pathname.startsWith(path)
+  );
 
-    // Не проверяем авторизацию если:
-    // 1. Уже идет логаут
-    // 2. Уже есть пользователь
-    // 3. Уже идет загрузка
-    // 4. Это не защищенный маршрут
-    if (isLoggingOut || user || isLoading || !isProtectedRoute) {
+  if (isLoggingOut || user || isLoading || isPublicRoute) {
+    setInitialAuthCheckDone(true);
+    return;
+  }
+
+  if (!isPublicRoute && !initialAuthCheckDone) {
+    dispatch(checkAuth()).finally(() => {
       setInitialAuthCheckDone(true);
-      return;
-    }
+    });
+  }
+}, [dispatch, location.pathname, user, isLoading, isLoggingOut, initialAuthCheckDone]);
 
-    if (isProtectedRoute && !initialAuthCheckDone) {
-      dispatch(checkAuth())
-
-        .finally(() => {
-
-          setInitialAuthCheckDone(true);
-        });
-
-    }
-  }, [dispatch, location.pathname, user, isLoading, isLoggingOut, initialAuthCheckDone]);
 
   if ((isLoading || !initialAuthCheckDone) && location.pathname.startsWith('/dashboard')) {
     return <Skeleton count={10} />;
@@ -69,11 +62,22 @@ const App: React.FC = () => {
               <Navigate to="/login" />
             )
           }
-        />        <Route path="*" element={<Navigate to="/login" />} />
+        />
+        <Route path="*" element={<Navigate to="/login" />} />
         <Route path="/registration" element={<RegistrationPage />} />
         <Route
           path="/activation-notice"
           element={user ? <ActivationNotice /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/settings"
+          element={
+            user && user.isActivated ? (
+              <AccountSettingsPage />
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
         />
       </Routes>
     </>

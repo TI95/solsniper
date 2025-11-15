@@ -1,5 +1,4 @@
 
-import WalletGenerator from "@/components/CreateNewWalletBtn";
 import ManualSellForm from "@/components/ManualSellForm";
 import MaxWidthWrapper from "@/components/MaxWidthWrapper";
 import { useAutoTrade } from "@/hooks/useAutoTrade";
@@ -159,7 +158,7 @@ const Dasboard = () => {
 
                 </div>
 
-                <WalletGenerator></WalletGenerator>
+                
             </div>
         </MaxWidthWrapper>
     );

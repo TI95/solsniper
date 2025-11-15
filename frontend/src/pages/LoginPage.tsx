@@ -29,7 +29,6 @@ const LoginPage: React.FC = () => {
       <form
         onSubmit={handleSubmit}
         className="flex flex-col w-80 gap-4 bg-white shadow-md rounded-xl p-6"
-
       >
         <h2 className=" text-xl font-bold text-center">Логин</h2>
 

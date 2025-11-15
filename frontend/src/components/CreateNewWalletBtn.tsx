@@ -33,10 +33,10 @@ export default function WalletGenerator() {
       {wallet.publicKey && (
         <div className="mt-4">
           <p><b>Public Key:</b> {wallet.publicKey}</p>
-          <p><b>Secret Key:</b> {wallet.secretKey?.toString()}</p>
+          <p>Сохраните ваш ключ и никому не показывайте<b>Secret Key:</b> {wallet.secretKey?.toString()}</p>
         </div>
       )}
     </div>
   );
 }
- 
+
