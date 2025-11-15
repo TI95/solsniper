@@ -21,7 +21,7 @@ export const usePools = (): TokenPairProfile[] | null => {
     const intervalId = setInterval(() => {
       fetchPools(); // Обновляем данные каждую минуту
     }, 60000);
-
+     
     return () => {
       clearInterval(intervalId); // Очищаем интервал при размонтировании компонента
     };
