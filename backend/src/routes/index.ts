@@ -4,6 +4,7 @@ import { body } from 'express-validator'
 import authMiddleware from '../middleware/auth-middleware';
 import TokensDataController from '../controllers/bought-tokens-controller';
 import WalletController from '../controllers/wallet-controller';
+import TradeController from '../controllers/trade-controller';
 
 const router = Router();
 
@@ -47,5 +48,9 @@ router.get('/wallet', authMiddleware, WalletController.get);
 router.delete('/wallet', authMiddleware, WalletController.remove);
 router.post('/bot/start', authMiddleware, WalletController.startBot);
 router.post('/bot/stop', authMiddleware, WalletController.stopBot);
+
+router.post('/sell/manual', authMiddleware, TradeController.manualSell);
+router.get('/positions', authMiddleware, TradeController.positions);
+router.get('/trades', authMiddleware, TradeController.trades);
 
 export default router;
