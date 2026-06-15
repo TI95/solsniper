@@ -52,3 +52,6 @@ test-results/
 .yarn/unplugged
 .yarn/build-state.yml
 .
+
+# TypeScript build info
+*.tsbuildinfo
