@@ -28,7 +28,7 @@ class PositionService {
     return n > 0;
   }
 
-  async getOpenPositions(userId: string): Promise<Position[]> {
+  async getOpenPositions(userId: string) {
     return PositionModel.find({ user: userId, status: 'open' });
   }
 
