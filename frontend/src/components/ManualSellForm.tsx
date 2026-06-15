@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { apiSellToken } from '@/blockchain/raydium-sell-token';
-import { apiPumpfunSwapToken } from '@/blockchain/pumpfunswap-buy';
-import { PublicKey } from '@solana/web3.js';
+import { manualSell } from '@/api/wallet-api';
  
 
 const SellTokenForm: React.FC = () => {
@@ -14,40 +12,25 @@ const SellTokenForm: React.FC = () => {
   const handleSell = async () => {
     setLoading(true);
     setResultMessage('');
-
     try {
       if (!tokenAddress) {
         setResultMessage('❌ Введите корректный адрес токена.');
         setLoading(false);
         return;
       }
-
-      if (platform === 'raydium') {
-        // --- Raydium: количество в SOL ---
-        const solAmount = parseFloat(amount.replace(',', '.'));
-        if (isNaN(solAmount) || solAmount <= 0) {
-          setResultMessage('❌ Введите количество в SOL.');
-          setLoading(false);
-          return;
-        }
-
-        const lamportsAmount = Math.round(solAmount * 1_000_000_000); // 1 SOL = 1e9 lamports
-        await apiSellToken(tokenAddress, lamportsAmount);
-        setResultMessage('✅ Продажа через Raydium завершена.');
-      } else {
-        // --- Pumpfun: количество токенов ---
-        const tokenAmount = parseInt(amount, 10);
-        if (isNaN(tokenAmount) || tokenAmount <= 0) {
-          setResultMessage('❌ Введите количество токенов для продажи.');
-          setLoading(false);
-          return;
-        }
-
-        await apiPumpfunSwapToken(new PublicKey(tokenAddress), tokenAmount, 'sell');
-        setResultMessage('✅ Продажа через Pumpfun завершена.');
+      const numeric =
+        platform === 'raydium' ? parseFloat(amount.replace(',', '.')) : parseInt(amount, 10);
+      if (isNaN(numeric) || numeric <= 0) {
+        setResultMessage(
+          platform === 'raydium' ? '❌ Введите количество в SOL.' : '❌ Введите количество токенов.'
+        );
+        setLoading(false);
+        return;
       }
+      const res = await manualSell(tokenAddress, numeric, platform);
+      setResultMessage(`✅ Продажа отправлена. txId: ${res.txId}`);
     } catch (error: any) {
-      setResultMessage(`❌ Ошибка при продаже: ${error.message || error}`);
+      setResultMessage(`❌ Ошибка при продаже: ${error?.response?.data?.message || error.message || error}`);
     } finally {
       setLoading(false);
     }
