@@ -13,7 +13,7 @@ class UserService {
     if (candidate) {
       throw ApiError.BadRequest('User with this email already exists');
     }
-    const hashPassword = await bcrypt.hash(password, 3);
+    const hashPassword = await bcrypt.hash(password, 12);
     const activationLink = uuidv4();
 
 
@@ -38,7 +38,6 @@ class UserService {
 
   async login(email: string, password: string) {
     const user = await UserModel.findOne({ email });
-    console.log(user);
     if (!user) {
       throw ApiError.BadRequest('User with this email not found');
     }

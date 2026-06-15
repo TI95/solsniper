@@ -18,7 +18,6 @@ router.post('/login', UserController.login);
 router.post('/logout', UserController.logout);
 router.get('/activate/:link', UserController.activate);
 router.get('/refresh', UserController.refresh);
-router.get('/dashboard', authMiddleware, UserController.getUsers); // Protected route
 router.post(
     "/tokens",
     authMiddleware,

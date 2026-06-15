@@ -3,7 +3,12 @@ import userService from "../services/user-service";
 import { validationResult } from "express-validator";
 import ApiError from "../exceptions/api-errors";
 
-
+const REFRESH_COOKIE_OPTS = {
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+};
 
 class UserController {
 
@@ -15,10 +20,7 @@ class UserController {
             }
             const { email, password } = req.body;
             const userData = await userService.registration(email, password);
-            res.cookie('refreshToken', userData.refreshToken, {
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                httpOnly: true,
-            });
+            res.cookie('refreshToken', userData.refreshToken, REFRESH_COOKIE_OPTS);
 
             return res.json(userData);
 
@@ -31,11 +33,7 @@ class UserController {
         try {
             const { email, password } = req.body;
             const userData = await userService.login(email, password);
-            res.cookie('refreshToken', userData.refreshToken, {
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                httpOnly: true,
-
-            });
+            res.cookie('refreshToken', userData.refreshToken, REFRESH_COOKIE_OPTS);
 
             return res.json(userData);
 
@@ -76,24 +74,8 @@ class UserController {
             const { refreshToken } = req.cookies;
             const userData = await userService.refresh(refreshToken)
 
-            res.cookie('refreshToken', userData.refreshToken, {
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-                httpOnly: true,
-                sameSite: 'lax',
-
-            });
+            res.cookie('refreshToken', userData.refreshToken, REFRESH_COOKIE_OPTS);
             return res.json(userData);
-        } catch (e) {
-            next(e);
-        }
-    }
-
-    async getUsers(req: Request, res: Response, next: NextFunction) {
-        try {
-            res.json(['123', '456', '789']);
-
-            // Logic for user registration
-
         } catch (e) {
             next(e);
         }
