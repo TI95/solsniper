@@ -7,8 +7,8 @@ import { TokenPairProfile } from "../types/dex-screener-pair";
 const DEX_SCREENER_API_URL_LATEST_TOKENS = "https://api.dexscreener.com/token-profiles/latest/v1";
 
 export const getPools = async (): Promise<TokenPairProfile[]> => {
-  const response = await axios.get(DEX_SCREENER_API_URL_LATEST_TOKENS);
-  
+  const response = await axios.get<TokenProfile[]>(DEX_SCREENER_API_URL_LATEST_TOKENS);
+
   return await getTokenPairInfo(response.data);
 };
 
@@ -17,9 +17,9 @@ async function getTokenPairInfo(data: TokenProfile[]): Promise<TokenPairProfile[
     data
       .filter((element) => element.chainId === 'solana')  
       .map(async (element) => {
-        const response = await axios.get(`https://api.dexscreener.com/token-pairs/v1/${element.chainId}/${element.tokenAddress}`);
-       
-        return response.data;  
+        const response = await axios.get<TokenPairProfile[]>(`https://api.dexscreener.com/token-pairs/v1/${element.chainId}/${element.tokenAddress}`);
+
+        return response.data;
       })
   );
 
