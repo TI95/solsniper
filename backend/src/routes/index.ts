@@ -3,6 +3,7 @@ import UserController from '../controllers/user-controller';
 import { body } from 'express-validator'
 import authMiddleware from '../middleware/auth-middleware';
 import TokensDataController from '../controllers/bought-tokens-controller';
+import WalletController from '../controllers/wallet-controller';
 
 const router = Router();
 
@@ -40,5 +41,11 @@ router.post(
 
 // Роут для получения всех токенов пользователя
 router.get("/tokens", authMiddleware, TokensDataController.getTokensData);
+
+router.post('/wallet', authMiddleware, WalletController.save);
+router.get('/wallet', authMiddleware, WalletController.get);
+router.delete('/wallet', authMiddleware, WalletController.remove);
+router.post('/bot/start', authMiddleware, WalletController.startBot);
+router.post('/bot/stop', authMiddleware, WalletController.stopBot);
 
 export default router;
