@@ -23,6 +23,12 @@ class TradeController {
       if (!tokenAddress || !amount || !platform) {
         return next(ApiError.BadRequest('tokenAddress, amount and platform are required'));
       }
+      if (platform !== 'raydium' && platform !== 'pumpfun') {
+        return next(ApiError.BadRequest("platform must be 'raydium' or 'pumpfun'"));
+      }
+      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+        return next(ApiError.BadRequest('amount must be a positive number'));
+      }
 
       const owner = await walletService.loadKeypair(userId);
       if (!owner) return next(ApiError.BadRequest('No wallet configured'));

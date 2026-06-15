@@ -85,11 +85,9 @@ class UserService {
     // Проверяем, действителен ли текущий токен
     const existingToken = tokenService.validateRefreshToken(tokenFromDb.refreshToken);
     if (existingToken) {
-      console.log('Refresh: Keeping existing valid refreshToken:', tokenFromDb.refreshToken);
       return { accessToken: tokens.accessToken, refreshToken: tokenFromDb.refreshToken, user: userDto };
     }
     await tokenService.saveToken(user._id.toString(), tokens.refreshToken);
-    console.log('Refresh: New tokens generated:', tokens);
     return { ...tokens, user: userDto };
   }
 }

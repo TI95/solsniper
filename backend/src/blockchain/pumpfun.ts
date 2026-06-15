@@ -1,4 +1,4 @@
-import { Keypair, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Keypair, Transaction, VersionedTransaction } from '@solana/web3.js';
 import axios from 'axios';
 import { getConnection } from './connection';
 import { SOL_MINT } from '../config/trading-config';
@@ -80,5 +80,3 @@ export async function pumpfunSwap(
   }
   throw new Error('Unexpected error in pumpfunSwap');
 }
-
-export { PublicKey };
