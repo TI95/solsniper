@@ -1,6 +1,9 @@
 import MaxWidthWrapper from "@/components/MaxWidthWrapper";
 import ManualSellForm from "@/components/ManualSellForm";
 import { getPositions, getTrades, PositionView, TradeView } from "@/api/wallet-api";
+import { getPnlAnalytics, PnlAnalytics } from "@/api/analytics-api";
+import PnlStats from "@/components/PnlStats";
+import PnlChart from "@/components/PnlChart";
 import { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -8,13 +11,15 @@ import 'react-loading-skeleton/dist/skeleton.css';
 const Dashboard = () => {
     const [positions, setPositions] = useState<PositionView[] | null>(null);
     const [trades, setTrades] = useState<TradeView[]>([]);
+    const [analytics, setAnalytics] = useState<PnlAnalytics | null>(null);
 
     useEffect(() => {
         const load = async () => {
             try {
-                const [p, t] = await Promise.all([getPositions(), getTrades()]);
+                const [p, t, a] = await Promise.all([getPositions(), getTrades(), getPnlAnalytics()]);
                 setPositions(p);
                 setTrades(t);
+                setAnalytics(a);
             } catch (e) {
                 console.error('Failed to load dashboard data:', e);
                 setPositions([]);
@@ -30,6 +35,9 @@ const Dashboard = () => {
     return (
         <MaxWidthWrapper>
             <div className="mt-10">
+                <h1 className="text-green-600 mb-4 font-bold">Аналитика</h1>
+                {analytics && <PnlStats kpis={analytics.kpis} />}
+                <PnlChart series={analytics?.series ?? []} />
                 <h1 className="text-green-600 mb-4 font-bold">Открытые позиции</h1>
                 {positions.length === 0 ? (
                     <p className="text-gray-500 mb-8">Открытых позиций нет.</p>
