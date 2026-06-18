@@ -49,6 +49,10 @@ router.get('/wallet', authMiddleware, WalletController.get);
 router.delete('/wallet', authMiddleware, WalletController.remove);
 router.post('/bot/start', authMiddleware, WalletController.startBot);
 router.post('/bot/stop', authMiddleware, WalletController.stopBot);
+router.post('/wallet/generate', authMiddleware, WalletController.generate);
+router.get('/wallet/balance', authMiddleware, WalletController.balance);
+router.post('/wallet/withdraw', authMiddleware, WalletController.withdraw);
+router.post('/wallet/export', authMiddleware, WalletController.exportSecret);
 
 router.get('/filter', authMiddleware, FilterController.get);
 router.put('/filter', authMiddleware, FilterController.save);
