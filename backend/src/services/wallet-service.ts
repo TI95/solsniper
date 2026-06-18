@@ -1,7 +1,10 @@
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { WalletModel } from '../models/wallet-model';
 import { encryptSecret, decryptSecret } from '../utils/crypto';
 import { parseSecretKey, toStorableSecret } from '../utils/keypair';
+import { getConnection } from '../blockchain/connection';
+import { transferSol } from '../blockchain/transfer';
+import { WITHDRAW_FEE_BUFFER_LAMPORTS } from '../config/trading-config';
 
 class WalletService {
   async saveWallet(userId: string, rawSecret: string) {
@@ -63,6 +66,35 @@ class WalletService {
       iv: doc.iv,
       authTag: doc.authTag,
     });
+  }
+
+  async getBalanceLamports(userId: string): Promise<number> {
+    const doc = await WalletModel.findOne({ user: userId });
+    if (!doc) throw new Error('No wallet');
+    return getConnection().getBalance(new PublicKey(doc.publicKey));
+  }
+
+  async withdraw(userId: string, destination: string, lamports: number): Promise<string> {
+    const kp = await this.loadKeypair(userId);
+    if (!kp) throw new Error('No wallet');
+
+    let dest: PublicKey;
+    try {
+      dest = new PublicKey(destination);
+    } catch {
+      throw new Error('Invalid destination address');
+    }
+    if (dest.equals(kp.publicKey)) {
+      throw new Error('Destination must differ from the wallet address');
+    }
+    if (!Number.isFinite(lamports) || lamports <= 0) {
+      throw new Error('Amount must be greater than 0');
+    }
+    const balance = await getConnection().getBalance(kp.publicKey);
+    if (lamports > balance - WITHDRAW_FEE_BUFFER_LAMPORTS) {
+      throw new Error('Amount exceeds available balance');
+    }
+    return transferSol(kp, dest, lamports);
   }
 
   async setBotEnabled(userId: string, enabled: boolean) {

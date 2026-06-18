@@ -23,3 +23,6 @@ export const WORKER = {
 } as const;
 
 export const SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+/** Lamports kept in the wallet on a "Max" withdraw so the network fee can be paid. */
+export const WITHDRAW_FEE_BUFFER_LAMPORTS = 10000;
