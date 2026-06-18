@@ -38,6 +38,33 @@ class WalletService {
     return parseSecretKey(secret);
   }
 
+  async generateWallet(userId: string) {
+    const kp = Keypair.generate();
+    const enc = encryptSecret(toStorableSecret(kp));
+    const doc = await WalletModel.findOneAndUpdate(
+      { user: userId },
+      {
+        user: userId,
+        publicKey: kp.publicKey.toBase58(),
+        encryptedSecret: enc.encryptedSecret,
+        iv: enc.iv,
+        authTag: enc.authTag,
+      },
+      { upsert: true, new: true }
+    );
+    return { publicKey: doc.publicKey };
+  }
+
+  async exportSecret(userId: string): Promise<string> {
+    const doc = await WalletModel.findOne({ user: userId });
+    if (!doc) throw new Error('No wallet to export');
+    return decryptSecret({
+      encryptedSecret: doc.encryptedSecret,
+      iv: doc.iv,
+      authTag: doc.authTag,
+    });
+  }
+
   async setBotEnabled(userId: string, enabled: boolean) {
     await WalletModel.updateOne({ user: userId }, { botEnabled: enabled });
   }

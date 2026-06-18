@@ -5,6 +5,7 @@ import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 import walletService from '../wallet-service';
 import { WalletModel } from '../../models/wallet-model';
+import { parseSecretKey } from '../../utils/keypair';
 
 let mongod: MongoMemoryServer;
 const userId = new mongoose.Types.ObjectId().toString();
@@ -61,5 +62,23 @@ describe('wallet-service', () => {
     await walletService.saveWallet(userId, secret);
     await walletService.deleteWallet(userId);
     expect(await walletService.getPublicView(userId)).toBeNull();
+  });
+
+  it('generateWallet stores an encrypted wallet whose pubkey matches the secret', async () => {
+    const { publicKey } = await walletService.generateWallet(userId);
+    const exported = await walletService.exportSecret(userId);
+    expect(parseSecretKey(exported).publicKey.toBase58()).toBe(publicKey);
+    const raw = await WalletModel.findOne({ user: userId });
+    expect(raw!.encryptedSecret).not.toContain(exported);
+  });
+
+  it('exportSecret round-trips a saved wallet to the same pubkey', async () => {
+    await walletService.saveWallet(userId, secret);
+    const exported = await walletService.exportSecret(userId);
+    expect(parseSecretKey(exported).publicKey.toBase58()).toBe(kp.publicKey.toBase58());
+  });
+
+  it('exportSecret throws when no wallet exists', async () => {
+    await expect(walletService.exportSecret(userId)).rejects.toThrow();
   });
 });
