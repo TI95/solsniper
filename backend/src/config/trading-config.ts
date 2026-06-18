@@ -9,12 +9,11 @@ export const TRADING = {
   MAX_TOKEN_AGE_SEC: 60 * 25,
 } as const;
 
+// Numeric thresholds (liquidity / market cap / boosts / age) are per-user now and
+// live in each user's FilterConfig; only chain + allowed DEXes stay global constants.
 export const FILTER = {
   CHAIN_ID: 'solana',
   ALLOWED_DEXES: ['raydium', 'pumpswap'] as const,
-  MIN_LIQUIDITY_USD: 25000,
-  MAX_MARKET_CAP_USD: 1300000,
-  MIN_BOOSTS: 50,
 } as const;
 
 export const WORKER = {

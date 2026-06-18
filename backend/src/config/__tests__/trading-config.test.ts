@@ -10,7 +10,7 @@ describe('trading config', () => {
   });
 
   it('exposes filter constants', () => {
-    expect(FILTER.MIN_LIQUIDITY_USD).toBe(25000);
+    expect(FILTER.CHAIN_ID).toBe('solana');
     expect(FILTER.ALLOWED_DEXES).toContain('raydium');
     expect(FILTER.ALLOWED_DEXES).toContain('pumpswap');
   });
