@@ -1,5 +1,6 @@
-import { FILTER, TRADING } from '../config/trading-config';
+import { FILTER } from '../config/trading-config';
 import { DexId } from '../models/position-model';
+import { FilterValues } from '../models/filter-config-model';
 
 export interface Candidate {
   chainId: string;
@@ -12,16 +13,16 @@ export interface Candidate {
   pairCreatedAt: number; // ms epoch
 }
 
-export function passesFilter(c: Candidate, nowMs: number): boolean {
+export function passesFilter(c: Candidate, nowMs: number, filter: FilterValues): boolean {
   const nowSec = Math.floor(nowMs / 1000);
-  const minCreatedSec = nowSec - TRADING.MAX_TOKEN_AGE_SEC;
+  const minCreatedSec = nowSec - filter.maxAgeMinutes * 60;
   const liquidityUsd = c.liquidity?.usd ?? 0;
   return (
     c.chainId === FILTER.CHAIN_ID &&
     (FILTER.ALLOWED_DEXES as readonly string[]).includes(c.dexId) &&
-    liquidityUsd >= FILTER.MIN_LIQUIDITY_USD &&
-    c.marketCap <= FILTER.MAX_MARKET_CAP_USD &&
-    c.boosts.active >= FILTER.MIN_BOOSTS &&
+    liquidityUsd >= filter.minLiquidityUSD &&
+    c.marketCap <= filter.maxMarketCapUSD &&
+    c.boosts.active >= filter.minBoosts &&
     Math.floor(c.pairCreatedAt / 1000) >= minCreatedSec
   );
 }

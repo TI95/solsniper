@@ -10,6 +10,7 @@ import { raydiumBuy, raydiumSell, LiquidErrorRaydium, RaydiumSwapCompute } from 
 import { pumpfunSwap } from '../blockchain/pumpfun';
 import positionService from '../services/position-service';
 import walletService from '../services/wallet-service';
+import filterConfigService from '../services/filter-config-service';
 import { TradeReason } from '../models/trade-model';
 
 export type SellAction = 'take_profit' | 'stop_loss' | 'dust' | 'hold';
@@ -34,8 +35,11 @@ export async function runBuyPass(userId: string, owner: Keypair, lastBuyAt: { va
   const nowSec = Math.floor(Date.now() / 1000);
   if (nowSec - lastBuyAt.value < TRADING.BUY_COOLDOWN_SEC) return;
 
+  const filter = await filterConfigService.getForUser(userId);
+  if (!filter) return; // bot must not trade without a configured filter
+
   const candidates = dedupeByBaseToken(await fetchCandidates()).filter((c) =>
-    passesFilter(c, Date.now())
+    passesFilter(c, Date.now(), filter)
   );
 
   for (const c of candidates) {

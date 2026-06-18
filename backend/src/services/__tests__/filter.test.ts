@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { passesFilter, dedupeByBaseToken, Candidate } from '../filter';
+import { FilterValues } from '../../models/filter-config-model';
 
 const now = Date.now();
+const filter: FilterValues = {
+  minLiquidityUSD: 25000,
+  maxMarketCapUSD: 1300000,
+  maxAgeMinutes: 25,
+  minBoosts: 50,
+};
 
 function make(overrides: Partial<Candidate>): Candidate {
   return {
@@ -19,31 +26,31 @@ function make(overrides: Partial<Candidate>): Candidate {
 
 describe('passesFilter', () => {
   it('passes a good candidate', () => {
-    expect(passesFilter(make({}), now)).toBe(true);
+    expect(passesFilter(make({}), now, filter)).toBe(true);
   });
-
   it('rejects wrong chain', () => {
-    expect(passesFilter(make({ chainId: 'ethereum' }), now)).toBe(false);
+    expect(passesFilter(make({ chainId: 'ethereum' }), now, filter)).toBe(false);
   });
-
   it('rejects disallowed dex', () => {
-    expect(passesFilter(make({ dexId: 'orca' as any }), now)).toBe(false);
+    expect(passesFilter(make({ dexId: 'orca' as any }), now, filter)).toBe(false);
   });
-
-  it('rejects low liquidity', () => {
-    expect(passesFilter(make({ liquidity: { usd: 1000 } }), now)).toBe(false);
+  it('rejects liquidity below the filter', () => {
+    expect(passesFilter(make({ liquidity: { usd: 24999 } }), now, filter)).toBe(false);
   });
-
-  it('rejects high market cap', () => {
-    expect(passesFilter(make({ marketCap: 99999999 }), now)).toBe(false);
+  it('accepts liquidity exactly at the filter', () => {
+    expect(passesFilter(make({ liquidity: { usd: 25000 } }), now, filter)).toBe(true);
   });
-
-  it('rejects too few boosts', () => {
-    expect(passesFilter(make({ boosts: { active: 1 } }), now)).toBe(false);
+  it('rejects market cap above the filter', () => {
+    expect(passesFilter(make({ marketCap: 1300001 }), now, filter)).toBe(false);
   });
-
-  it('rejects too-old token', () => {
-    expect(passesFilter(make({ pairCreatedAt: now - 60 * 60 * 1000 }), now)).toBe(false);
+  it('rejects boosts below the filter', () => {
+    expect(passesFilter(make({ boosts: { active: 49 } }), now, filter)).toBe(false);
+  });
+  it('rejects a token older than maxAgeMinutes', () => {
+    expect(passesFilter(make({ pairCreatedAt: now - 26 * 60 * 1000 }), now, filter)).toBe(false);
+  });
+  it('accepts a token within maxAgeMinutes', () => {
+    expect(passesFilter(make({ pairCreatedAt: now - 24 * 60 * 1000 }), now, filter)).toBe(true);
   });
 });
 
