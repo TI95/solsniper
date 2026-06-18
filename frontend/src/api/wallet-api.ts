@@ -29,6 +29,36 @@ export const stopBot = async (): Promise<{ botEnabled: boolean }> => {
   return res.data;
 };
 
+export const generateWallet = async (): Promise<{ publicKey: string }> => {
+  const res = await api.post<{ publicKey: string }>('/wallet/generate');
+  return res.data;
+};
+
+export const getBalance = async (): Promise<{ lamports: number; sol: number }> => {
+  const res = await api.get<{ lamports: number; sol: number }>('/wallet/balance');
+  return res.data;
+};
+
+export const withdrawSol = async (
+  password: string,
+  destination: string,
+  amountSol: number | null,
+  max: boolean
+): Promise<{ txId: string }> => {
+  const res = await api.post<{ txId: string }>('/wallet/withdraw', {
+    password,
+    destination,
+    amountSol: amountSol ?? undefined,
+    max,
+  });
+  return res.data;
+};
+
+export const exportSecret = async (password: string): Promise<{ secretKey: string }> => {
+  const res = await api.post<{ secretKey: string }>('/wallet/export', { password });
+  return res.data;
+};
+
 export const manualSell = async (
   tokenAddress: string,
   amount: number,
