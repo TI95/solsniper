@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth-middleware';
 import ApiError from '../exceptions/api-errors';
 import walletService from '../services/wallet-service';
+import filterConfigService from '../services/filter-config-service';
 
 class WalletController {
   async save(req: AuthRequest, res: Response, next: NextFunction) {
@@ -51,6 +52,9 @@ class WalletController {
       if (!userId) return next(ApiError.UnauthorizedError());
       const view = await walletService.getPublicView(userId);
       if (!view) return next(ApiError.BadRequest('Add a wallet before starting the bot'));
+      if (!(await filterConfigService.hasForUser(userId))) {
+        return next(ApiError.BadRequest('Configure a filter before starting the bot'));
+      }
       await walletService.setBotEnabled(userId, true);
       return res.json({ botEnabled: true });
     } catch (e) {
