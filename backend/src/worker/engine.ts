@@ -2,7 +2,7 @@ import { Keypair } from '@solana/web3.js';
 import { getMint } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { TRADING } from '../config/trading-config';
-import { fetchCandidates } from '../services/dexscreener-service';
+import { getCandidates } from '../services/dexscreener-service';
 import { passesFilter, dedupeByBaseToken, dexIdOf } from '../services/filter';
 import { getTokenPrice, getSOLPrice } from '../services/birdeye-service';
 import { getConnection } from '../blockchain/connection';
@@ -38,7 +38,7 @@ export async function runBuyPass(userId: string, owner: Keypair, lastBuyAt: { va
   const filter = await filterConfigService.getForUser(userId);
   if (!filter) return; // bot must not trade without a configured filter
 
-  const candidates = dedupeByBaseToken(await fetchCandidates()).filter((c) =>
+  const candidates = dedupeByBaseToken(await getCandidates()).filter((c) =>
     passesFilter(c, Date.now(), filter)
   );
 
