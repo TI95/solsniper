@@ -25,7 +25,30 @@ export function validateFilterValues(raw: any): FilterValues {
 }
 
 class FilterConfigService {
-  // CRUD methods added in Task 2
+  async getForUser(userId: string): Promise<FilterValues | null> {
+    const doc = await FilterConfigModel.findOne({ user: userId });
+    if (!doc) return null;
+    return {
+      minLiquidityUSD: doc.minLiquidityUSD,
+      maxMarketCapUSD: doc.maxMarketCapUSD,
+      maxAgeMinutes: doc.maxAgeMinutes,
+      minBoosts: doc.minBoosts,
+    };
+  }
+
+  async saveForUser(userId: string, raw: any): Promise<FilterValues> {
+    const values = validateFilterValues(raw);
+    await FilterConfigModel.findOneAndUpdate(
+      { user: userId },
+      { user: userId, ...values, updatedAt: new Date() },
+      { upsert: true, new: true }
+    );
+    return values;
+  }
+
+  async hasForUser(userId: string): Promise<boolean> {
+    return (await FilterConfigModel.exists({ user: userId })) !== null;
+  }
 }
 
 export default new FilterConfigService();
