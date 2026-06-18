@@ -123,6 +123,9 @@ class WalletController {
       if (max) {
         const balance = await walletService.getBalanceLamports(userId);
         lamports = balance - WITHDRAW_FEE_BUFFER_LAMPORTS;
+        if (lamports <= 0) {
+          return next(ApiError.BadRequest('Balance too low to withdraw'));
+        }
       } else {
         lamports = Math.round(amountSol * 1e9);
       }

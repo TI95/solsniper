@@ -16,6 +16,8 @@ import app from '../../app';
 import tokenService from '../../services/token-service';
 import { UserModel } from '../../models/user-model';
 import { WalletModel } from '../../models/wallet-model';
+import { transferSol } from '../../blockchain/transfer';
+import { getConnection } from '../../blockchain/connection';
 
 let mongod: MongoMemoryServer;
 const DEST = 'So11111111111111111111111111111111111111112'; // valid 32-byte base58 pubkey (wrapped SOL mint)
@@ -46,6 +48,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await UserModel.deleteMany({});
   await WalletModel.deleteMany({});
+  vi.clearAllMocks();
 });
 
 describe('wallet management endpoints', () => {
@@ -140,5 +143,40 @@ describe('wallet management endpoints', () => {
     const pk = parseSecretKey(exportA.body.secretKey).publicKey.toBase58();
     expect(pk).toBe(genA.body.publicKey);
     expect(pk).not.toBe(genB.body.publicKey);
+  });
+
+  it("withdraw is scoped per user — B's withdraw signs with B's wallet, not A's (IDOR)", async () => {
+    const a = await makeUser('a@e.com');
+    const b = await makeUser('b@e.com');
+    const genA = await request(app)
+      .post('/api/wallet/generate')
+      .set('Authorization', `Bearer ${a.token}`);
+    const genB = await request(app)
+      .post('/api/wallet/generate')
+      .set('Authorization', `Bearer ${b.token}`);
+
+    const res = await request(app)
+      .post('/api/wallet/withdraw')
+      .set('Authorization', `Bearer ${b.token}`)
+      .send({ password: b.password, destination: DEST, amountSol: 0.5 });
+    expect(res.status).toBe(200);
+
+    // transferSol(from, to, lamports) — the signing keypair must be B's, never A's.
+    const fromKp = (transferSol as any).mock.calls[0][0];
+    expect(fromKp.publicKey.toBase58()).toBe(genB.body.publicKey);
+    expect(fromKp.publicKey.toBase58()).not.toBe(genA.body.publicKey);
+  });
+
+  it('Max withdraw on a wallet below the fee buffer is rejected with 400', async () => {
+    const a = await makeUser('a@e.com');
+    await request(app).post('/api/wallet/generate').set('Authorization', `Bearer ${a.token}`);
+    // Controller reads the balance once for Max; return a value below the fee buffer.
+    (getConnection as any).mockReturnValueOnce({ getBalance: vi.fn().mockResolvedValue(5000) });
+    const res = await request(app)
+      .post('/api/wallet/withdraw')
+      .set('Authorization', `Bearer ${a.token}`)
+      .send({ password: a.password, destination: DEST, max: true });
+    expect(res.status).toBe(400);
+    expect(transferSol).not.toHaveBeenCalled();
   });
 });
