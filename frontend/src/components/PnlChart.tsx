@@ -18,8 +18,13 @@ const PnlChart = ({ series }: { series: PnlPoint[] }) => {
     );
   }
 
+  // Keep the unique ISO timestamp as the x key (multiple trades can share a
+  // calendar day); format it to a short date only for display.
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
   const data = series.map((p) => ({
-    time: new Date(p.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    t: p.t,
     pnl: Number(p.cumulativePnlUSD.toFixed(2)),
   }));
 
@@ -28,9 +33,9 @@ const PnlChart = ({ series }: { series: PnlPoint[] }) => {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="time" />
+          <XAxis dataKey="t" tickFormatter={fmtDate} />
           <YAxis />
-          <Tooltip />
+          <Tooltip labelFormatter={fmtDate} />
           <Area type="monotone" dataKey="pnl" stroke="#16a34a" fill="#16a34a" fillOpacity={0.15} />
         </AreaChart>
       </ResponsiveContainer>

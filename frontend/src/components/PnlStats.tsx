@@ -12,8 +12,8 @@ const PnlStats = ({ kpis }: { kpis: PnlKpis }) => {
     { label: 'Итоговый PnL', value: formatUsd(kpis.totalPnlUSD), tone: kpis.totalPnlUSD >= 0 ? 'pos' : 'neg' },
     { label: 'Сделок', value: String(kpis.trades) },
     { label: 'Win-rate', value: `${(kpis.winRate * 100).toFixed(1)}%` },
-    { label: 'Лучшая', value: formatUsd(kpis.bestUSD), tone: 'pos' },
-    { label: 'Худшая', value: formatUsd(kpis.worstUSD), tone: 'neg' },
+    { label: 'Лучшая', value: formatUsd(kpis.bestUSD), tone: kpis.bestUSD >= 0 ? 'pos' : 'neg' },
+    { label: 'Худшая', value: formatUsd(kpis.worstUSD), tone: kpis.worstUSD >= 0 ? 'pos' : 'neg' },
   ];
 
   return (
