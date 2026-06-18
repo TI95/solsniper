@@ -33,4 +33,7 @@ describe('validateFilterValues', () => {
   it('rejects non-integer minBoosts', () => {
     expect(() => validateFilterValues({ ...valid, minBoosts: 1.5 })).toThrow(ApiError);
   });
+  it('rejects negative minBoosts', () => {
+    expect(() => validateFilterValues({ ...valid, minBoosts: -1 })).toThrow(ApiError);
+  });
 });
