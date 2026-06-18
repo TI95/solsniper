@@ -6,6 +6,7 @@ import TokensDataController from '../controllers/bought-tokens-controller';
 import WalletController from '../controllers/wallet-controller';
 import TradeController from '../controllers/trade-controller';
 import FilterController from '../controllers/filter-controller';
+import AnalyticsController from '../controllers/analytics-controller';
 
 const router = Router();
 
@@ -55,5 +56,6 @@ router.put('/filter', authMiddleware, FilterController.save);
 router.post('/sell/manual', authMiddleware, TradeController.manualSell);
 router.get('/positions', authMiddleware, TradeController.positions);
 router.get('/trades', authMiddleware, TradeController.trades);
+router.get('/analytics/pnl', authMiddleware, AnalyticsController.pnl);
 
 export default router;
