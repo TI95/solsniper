@@ -55,6 +55,13 @@ class UserService {
     return { ...tokens, user: userDto };
   }
 
+  /** Re-auth helper: true iff `password` matches the user's stored hash. Never logs the password. */
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    const user = await UserModel.findById(userId);
+    if (!user) return false;
+    return bcrypt.compare(password, user.password);
+  }
+
   async logout(refreshToken: string) {
     const token = await tokenService.removeToken(refreshToken);
     return token;
