@@ -11,7 +11,7 @@ type FormState = {
 
 const EMPTY: FormState = { minLiquidityUSD: '', maxMarketCapUSD: '', maxAgeMinutes: '', minBoosts: '' };
 
-export default function FilterSettings() {
+export default function FilterSettings({ onSaved }: { onSaved?: () => void }) {
   const [applied, setApplied] = useState<FilterValues | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [message, setMessage] = useState('');
@@ -52,6 +52,7 @@ export default function FilterSettings() {
       const saved = await saveFilter(values);
       setApplied(saved);
       setMessage('✅ Фильтр сохранён');
+      onSaved?.();
     } catch (e: any) {
       setMessage(`❌ ${e?.response?.data?.message || 'Ошибка сохранения фильтра'}`);
     } finally {

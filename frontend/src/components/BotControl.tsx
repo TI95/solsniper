@@ -1,19 +1,14 @@
 import { useEffect, useState } from 'react';
 import { getWallet, startBot, stopBot } from '@/api/wallet-api';
-import { getFilter } from '@/api/filter-api';
 
-export default function BotControl() {
+export default function BotControl({ hasFilter }: { hasFilter: boolean }) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
-  const [hasFilter, setHasFilter] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     getWallet()
       .then((w) => setEnabled(w?.botEnabled ?? false))
       .catch(() => setEnabled(false));
-    getFilter()
-      .then((f) => setHasFilter(f !== null))
-      .catch(() => setHasFilter(false));
   }, []);
 
   const toggle = async () => {
